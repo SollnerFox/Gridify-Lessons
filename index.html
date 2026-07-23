@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gridify Lessons</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7c3aed">
+  <!-- Іконка для вкладок браузера (Favicon) -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+  <!-- Іконка для пристроїв Apple (iOS Safari) -->
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+
+<div id="authModal" class="modal" style="display: none; z-index: 1000;">
+  <div class="modal-content" style="text-align: center;">
+    <h3>Авторизація</h3>
+    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;">
+      Увійдіть для синхронізації розкладу з хмарою або продовжуйте анонімно.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+      <button class="btn btn-primary" id="btnGoogleSignIn"><i class="ph ph-google-logo"></i> Увійти через Google</button>
+      <button class="btn" id="btnAnonSignIn"><i class="ph ph-user-circle"></i> Продовжити без реєстрації</button>
+    </div>
+  </div>
+</div>
+
+<div id="conflictModal" class="modal" style="display: none; z-index: 1100;">
+  <div class="modal-content">
+    <h3>Конфлікт синхронізації даних</h3>
+    <p style="font-size: 0.9rem; color: var(--text-muted);">Локальний розклад відрізняється від даних у хмарі. Оберіть версію для роботи.</p>
+    <div style="display: flex; gap: 15px; margin-top: 15px;">
+      <div style="flex: 1; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px;">
+        <h4>Хмарні дані</h4>
+        <p style="font-size: 0.8rem;" id="cloudMetaInfo"></p>
+        <button class="btn btn-primary" id="btnUseCloud" style="width: 100%; margin-top: 10px;">Завантажити з хмари</button>
+      </div>
+      <div style="flex: 1; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px;">
+        <h4>Локальні дані</h4>
+        <p style="font-size: 0.8rem;" id="localMetaInfo"></p>
+        <button class="btn" id="btnUseLocal" style="width: 100%; margin-top: 10px;">Використати локальні</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="top-bar">
+  <div class="controls">
+    <div class="nav-group">
+      <button class="btn nav-btn" onclick="changeWeek(-1)"><i class="ph ph-caret-left"></i></button>
+      <button class="btn nav-btn" onclick="changeWeek(0)">Сьогодні</button>
+      <button class="btn nav-btn" onclick="changeWeek(1)"><i class="ph ph-caret-right"></i></button>
+    </div>
+    <span id="week-label" class="week-label"></span>
+  </div>
+
+  <div class="right-controls">
+    <span id="syncStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 10px; display: flex; align-items: center; gap: 4px;"><i class="ph ph-cloud-slash"></i> Офлайн</span>
+
+    <div id="globalNonWorkingWrapper" class="header-checkbox-label" style="display: none;">
+      <input type="checkbox" id="globalNonWorking"> Щотижнево
+    </div>
+    <button id="modeBtn" class="btn" onclick="toggleEditMode()"><i class="ph ph-pencil-simple"></i> Режим: Звичайний</button>
+
+    <div class="settings-dropdown-container">
+      <button class="btn" onclick="toggleSettingsDropdown()"><i class="ph ph-gear"></i> Налаштування</button>
+      <div id="settingsDropdown" class="settings-dropdown-menu" style="display: none;">
+        <div class="dropdown-section form-group">
+          <label for="timezoneSelect">Часовий пояс відображення</label>
+          <select id="timezoneSelect" onchange="updateTimezone(this.value)"></select>
+        </div>
+
+        <div class="dropdown-section checkbox-group">
+          <label>
+            <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)"> Світла тема
+          </label>
+        </div>
+
+        <div class="dropdown-section checkbox-group">
+          <label>
+            <input type="checkbox" id="notifToggle"> Увімкнути сповіщення за 10 хв
+          </label>
+        </div>
+
+        <hr class="dropdown-divider">
+        <div class="dropdown-section">
+          <h4>Кольорова палітра</h4>
+          <div class="color-pickers">
+            <div class="color-field">
+              <label>Уроки</label>
+              <div class="color-control">
+                <span id="prevLesson" class="color-preview" onclick="document.getElementById('colorLesson').click()"></span>
+                <input type="color" id="colorLesson" onchange="updateThemeColor('--lesson-color', this.value)">
+              </div>
+            </div>
+            <div class="color-field">
+              <label>Відпрац. 30хв</label>
+              <div class="color-control">
+                <span id="prevPrep30" class="color-preview" onclick="document.getElementById('colorPrep30').click()"></span>
+                <input type="color" id="colorPrep30" onchange="updateThemeColor('--prep-color', this.value)">
+              </div>
+            </div>
+            <div class="color-field">
+              <label>Відпрац. 1год</label>
+              <div class="color-control">
+                <span id="prevPrep60" class="color-preview" onclick="document.getElementById('colorPrep60').click()"></span>
+                <input type="color" id="colorPrep60" onchange="updateThemeColor('--prep60-color', this.value)">
+              </div>
+            </div>
+            <div class="color-field">
+              <label>Неробочий час</label>
+              <div class="color-control">
+                <span id="prevNonWorking" class="color-preview" onclick="document.getElementById('colorNonWorking').click()"></span>
+                <input type="color" id="colorNonWorking" onchange="updateThemeColor('--non-working-bg', this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="dropdown-divider">
+        <div class="dropdown-section" id="authSettingsSection">
+          <!-- Динамічно заповнюється -->
+        </div>
+
+        <div class="dropdown-actions" style="margin-top: 10px;">
+          <button class="btn btn-danger" onclick="clearData()"><i class="ph ph-trash"></i> Очистити локальні дані</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="app-container">
+  <aside class="sidebar" id="appSidebar">
+    <button class="sidebar-toggle-edge" id="toggleSidebarBtn" title="Перемкнути бічну панель">
+      <i class="ph ph-caret-left"></i>
+    </button>
+
+    <div class="sidebar-wrapper">
+      <div class="sidebar-content">
+        <h2><i class="ph ph-plus-circle"></i> Нова група</h2>
+
+        <div class="form-group">
+          <label for="title">Група</label>
+          <input type="text" id="title" placeholder="Наприклад: Python">
+        </div>
+
+        <div class="form-group">
+          <label for="dayOfWeek">День тижня</label>
+          <select id="dayOfWeek">
+            <option value="" disabled selected hidden>Оберіть день</option>
+            <option value="1">Понеділок</option>
+            <option value="2">Вівторок</option>
+            <option value="3">Середа</option>
+            <option value="4">Четвер</option>
+            <option value="5">П'ятниця</option>
+            <option value="6">Субота</option>
+            <option value="0">Неділя</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="startTime">Час початку</label>
+          <input type="time" id="startTime" step="1800">
+          <small id="tzHint" class="tz-hint"></small>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="hasPrep"> +30 хв відпрацювання перед уроком
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="startDate">Початок курсу</label>
+          <input type="date" id="startDate">
+        </div>
+
+        <div class="form-group">
+          <label for="endDate">Кінець курсу</label>
+          <input type="date" id="endDate">
+        </div>
+
+        <button class="btn btn-primary" onclick="addLesson()"><i class="ph ph-floppy-disk"></i> Зберегти урок</button>
+        <button onclick="exportScheduleImage()" class="btn btn-primary"><i class="ph ph-download-simple"></i> Експортувати розклад</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="calendar-container" id="calendarView">
+    <div class="grid-header" id="gridHeader"></div>
+    <div class="grid-body" id="gridBody"></div>
+  </main>
+</div>
+
+<div id="prepModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <h3>Записати на відпрацювання</h3>
+    <div class="form-group">
+      <label for="modalStudentName">Ім'я та прізвище учня</label>
+      <input type="text" id="modalStudentName" placeholder="Введіть ім'я">
+    </div>
+    <div class="form-group" id="modalGroupContainer">
+      <label for="modalGroupName">Яка група</label>
+      <select id="modalGroupName">
+        <option value="" disabled selected hidden>Оберіть групу</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="savePrepStudent()">Зберегти</button>
+      <button class="btn" onclick="closeModal()">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<div id="lessonEditModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <h3>Редагувати назву групи</h3>
+    <div class="form-group">
+      <label for="modalLessonTitle">Нова назва</label>
+      <input type="text" id="modalLessonTitle" placeholder="Введіть нову назву">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveLessonTitle()">Зберегти</button>
+      <button class="btn" onclick="closeLessonEditModal()">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<div id="contextMenu" class="context-menu" style="display: none;">
+  <div id="ctx-slot-actions">
+    <div class="ctx-item" onclick="handleContextMenuAction('prep60')"><i class="ph ph-clock-plus"></i> +1 год відпрацювання</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('toggleFullDayNonWorking')"><i class="ph ph-prohibit"></i> Заблокувати/Розблокувати день</div>
+  </div>
+  <div id="ctx-lesson-actions">
+    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> Перенести на іншу дату</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('cancel_single_date')"><i class="ph ph-x-circle"></i> Скасувати на цей день</div>
+    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_series')"><i class="ph ph-trash"></i> Видалити весь курс</div>
+  </div>
+  <div id="ctx-other-actions">
+    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> Перенести на іншу дату</div>
+    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_single')"><i class="ph ph-trash"></i> Видалити</div>
+  </div>
+</div>
+
+<script type="module" src="config.js"></script>
+<script type="module" src="state.js"></script>
+<script type="module" src="storage.js"></script>
+<script type="module" src="auth.js"></script>
+<script type="module" src="settings.js"></script>
+<script type="module" src="modals.js"></script>
+<script type="module" src="calendar.js"></script>
+<script type="module" src="notifications.js"></script>
+<script type="module">
+  import { notificationManager } from './notifications.js';
+  notificationManager.bindToggle('#notifToggle');
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
