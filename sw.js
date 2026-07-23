@@ -21,6 +21,13 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+    const url = new URL(e.request.url);
+
+    // Ігноруємо не-GET запити (POST, PUT тощо) та зовнішні домени (Firebase, Firestore API)
+    if (e.request.method !== 'GET' || url.origin !== self.location.origin) {
+        return;
+    }
+
     e.respondWith(
         caches.match(e.request).then((res) => res || fetch(e.request))
     );
