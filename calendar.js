@@ -4,6 +4,14 @@ import { showContextMenu } from "./modals.js";
 import { openPrepModal, openLessonEditModal } from "./modals.js";
 import { WORK_START_HOUR, WORK_END_HOUR, LESSON_DURATION, SLOT_HEIGHT } from "./config.js";
 
+export function getTzOffsetMinutes() {
+    const tz = state.currentTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const now = new Date();
+    const localDate = new Date(now.toLocaleString('en-US'));
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    return Math.round((tzDate - localDate) / 60000);
+}
+
 export function changeWeek(offset) {
     if (offset === 0) state.currentWeekStart = getMonday(new Date());
     else state.currentWeekStart.setDate(state.currentWeekStart.getDate() + (offset * 7));
@@ -86,6 +94,8 @@ export function renderCalendar() {
     weekEnd.setDate(weekEnd.getDate() + 6);
     weekLabel.innerText = `${state.currentWeekStart.toLocaleDateString('uk')} — ${weekEnd.toLocaleDateString('uk')}`;
 
+    const offsetMins = getTzOffsetMinutes();
+
     const header = document.getElementById('gridHeader');
     if (!header) return;
     header.innerHTML = '<div class="header-cell">Час</div>';
@@ -121,9 +131,23 @@ export function renderCalendar() {
 
         for (let hour = WORK_START_HOUR; hour < WORK_END_HOUR; hour++) {
             ['00', '30'].forEach(minute => {
-                const timeStr = `${String(hour).padStart(2, '0')}:${minute}`;
-                const nwKey = `${currentDayStr}_${timeStr}`;
-                const recurringKey = `${dayOfWeek}_${timeStr}`;
+                let localMins = hour * 60 + parseInt(minute) - offsetMins;
+                let localDayDate = new Date(currentDayDate);
+
+                if (localMins < 0) {
+                    localMins += 24 * 60;
+                    localDayDate.setDate(localDayDate.getDate() - 1);
+                } else if (localMins >= 24 * 60) {
+                    localMins -= 24 * 60;
+                    localDayDate.setDate(localDayDate.getDate() + 1);
+                }
+
+                const localTimeStr = `${String(Math.floor(localMins / 60)).padStart(2, '0')}:${String(localMins % 60).padStart(2, '0')}`;
+                const localDateStr = formatDate(localDayDate);
+                const localDayOfWeek = localDayDate.getDay();
+
+                const nwKey = `${localDateStr}_${localTimeStr}`;
+                const recurringKey = `${localDayOfWeek}_${localTimeStr}`;
 
                 const isRecurring = state.recurringNonWorkingSlots.includes(recurringKey);
                 const hasException = state.workingExceptions && state.workingExceptions.includes(nwKey);
@@ -151,7 +175,7 @@ export function renderCalendar() {
                 };
 
                 slotEl.oncontextmenu = (e) => {
-                    if (!state.isNonWorkingEditMode) showContextMenu(e, { dateStr: currentDayStr, timeStr, type: 'slot' });
+                    if (!state.isNonWorkingEditMode) showContextMenu(e, { dateStr: localDateStr, timeStr: localTimeStr, type: 'slot' });
                 };
 
                 dayCol.appendChild(slotEl);
@@ -159,71 +183,106 @@ export function renderCalendar() {
         }
 
         state.lessons.forEach(l => {
-            if (l.dayOfWeek === dayOfWeek && currentDayStr >= l.startDate && currentDayStr <= l.endDate) {
-                if (state.cancelledDates.includes(`${l.id}_${currentDayStr}`)) return;
+            const [h, m] = l.startTime.split(':').map(Number);
+            let targetMins = h * 60 + m + offsetMins;
+            let targetDayOfWeek = l.dayOfWeek;
+            let dayShift = 0;
 
-                const [h, m] = l.startTime.split(':').map(Number);
-                const startMinutesFromBase = (h - WORK_START_HOUR) * 60 + m;
-                const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
-                const heightPx = (LESSON_DURATION / 30) * SLOT_HEIGHT;
+            if (targetMins >= 24 * 60) {
+                targetMins -= 24 * 60;
+                targetDayOfWeek = (targetDayOfWeek + 1) % 7;
+                dayShift = 1;
+            } else if (targetMins < 0) {
+                targetMins += 24 * 60;
+                targetDayOfWeek = (targetDayOfWeek + 6) % 7;
+                dayShift = -1;
+            }
 
-                if (topPx >= 0) {
-                    const lessonEl = document.createElement('div');
-                    lessonEl.className = 'event-block event-lesson';
-                    lessonEl.style.top = `${topPx}px`;
-                    lessonEl.style.height = `${heightPx - 2}px`;
+            if (targetDayOfWeek === dayOfWeek) {
+                let originalDateObj = new Date(currentDayDate);
+                originalDateObj.setDate(originalDateObj.getDate() - dayShift);
+                const originalDateStr = formatDate(originalDateObj);
 
-                    const formattedEndDate = l.endDate ? l.endDate.split('-').reverse().join('.') : '';
+                if (originalDateStr >= l.startDate && originalDateStr <= l.endDate) {
+                    if (state.cancelledDates.includes(`${l.id}_${originalDateStr}`)) return;
 
-                    lessonEl.innerHTML = `
-                        <div class="lesson-title">${l.title} (${l.startTime})</div>
-                        <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
-                    `;
+                    const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
+                    const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
+                    const heightPx = (LESSON_DURATION / 30) * SLOT_HEIGHT;
 
-                    lessonEl.onclick = () => openLessonEditModal(l.id);
-                    lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'lesson', id: l.id, dateStr: currentDayStr });
-                    dayCol.appendChild(lessonEl);
-                }
+                    if (topPx >= 0) {
+                        const lessonEl = document.createElement('div');
+                        lessonEl.className = 'event-block event-lesson';
+                        lessonEl.style.top = `${topPx}px`;
+                        lessonEl.style.height = `${heightPx - 2}px`;
 
-                if (l.hasPrep) {
-                    const prepStartMinutes = startMinutesFromBase - 30;
-                    const prepTopPx = (prepStartMinutes / 30) * SLOT_HEIGHT;
-                    const prepHeightPx = (30 / 30) * SLOT_HEIGHT;
+                        const formattedEndDate = l.endDate ? l.endDate.split('-').reverse().join('.') : '';
+                        const targetTimeStr = `${String(Math.floor(targetMins / 60)).padStart(2, '0')}:${String(targetMins % 60).padStart(2, '0')}`;
 
-                    if (prepTopPx >= 0) {
-                        const prepKey = `${l.id}_${currentDayStr}`;
-                        const prepData = state.prepOverrides[prepKey];
+                        lessonEl.innerHTML = `
+                            <div class="lesson-title">${l.title} (${targetTimeStr})</div>
+                            <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
+                        `;
 
-                        let sName = '';
-                        let gName = l.title;
-                        if (typeof prepData === 'string') {
-                            sName = prepData;
-                        } else if (prepData) {
-                            sName = prepData.studentName || '';
-                            gName = prepData.groupName || l.title;
+                        lessonEl.onclick = () => openLessonEditModal(l.id);
+                        lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'lesson', id: l.id, dateStr: originalDateStr });
+                        dayCol.appendChild(lessonEl);
+                    }
+
+                    if (l.hasPrep) {
+                        const prepStartMinutes = startMinutesFromBase - 30;
+                        const prepTopPx = (prepStartMinutes / 30) * SLOT_HEIGHT;
+                        const prepHeightPx = (30 / 30) * SLOT_HEIGHT;
+
+                        if (prepTopPx >= 0) {
+                            const prepKey = `${l.id}_${originalDateStr}`;
+                            const prepData = state.prepOverrides[prepKey];
+
+                            let sName = '';
+                            let gName = l.title;
+                            if (typeof prepData === 'string') {
+                                sName = prepData;
+                            } else if (prepData) {
+                                sName = prepData.studentName || '';
+                                gName = prepData.groupName || l.title;
+                            }
+
+                            const prepEl = document.createElement('div');
+                            prepEl.className = 'event-block event-prep';
+                            prepEl.style.top = `${prepTopPx}px`;
+                            prepEl.style.height = `${prepHeightPx - 2}px`;
+                            prepEl.style.minHeight = '34px';
+
+                            const studentText = sName.trim() ? sName : 'Вільно';
+                            prepEl.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
+
+                            prepEl.onclick = () => openPrepModal(prepKey, sName, gName, true);
+                            prepEl.oncontextmenu = (e) => showContextMenu(e, { type: 'prep_override', key: prepKey });
+                            dayCol.appendChild(prepEl);
                         }
-
-                        const prepEl = document.createElement('div');
-                        prepEl.className = 'event-block event-prep';
-                        prepEl.style.top = `${prepTopPx}px`;
-                        prepEl.style.height = `${prepHeightPx - 2}px`;
-                        prepEl.style.minHeight = '34px';
-
-                        const studentText = sName.trim() ? sName : 'Вільно';
-                        prepEl.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
-
-                        prepEl.onclick = () => openPrepModal(prepKey, sName, gName, true);
-                        prepEl.oncontextmenu = (e) => showContextMenu(e, { type: 'prep_override', key: prepKey });
-                        dayCol.appendChild(prepEl);
                     }
                 }
             }
         });
 
         state.movedLessons.forEach(ml => {
-            if (ml.dateStr === currentDayStr) {
-                const [h, m] = ml.timeStr.split(':').map(Number);
-                const startMinutesFromBase = (h - WORK_START_HOUR) * 60 + m;
+            const [h, m] = ml.timeStr.split(':').map(Number);
+            let targetMins = h * 60 + m + offsetMins;
+
+            const [y, mo, d] = ml.dateStr.split('-').map(Number);
+            let targetDateObj = new Date(y, mo - 1, d);
+
+            if (targetMins >= 24 * 60) {
+                targetMins -= 24 * 60;
+                targetDateObj.setDate(targetDateObj.getDate() + 1);
+            } else if (targetMins < 0) {
+                targetMins += 24 * 60;
+                targetDateObj.setDate(targetDateObj.getDate() - 1);
+            }
+            const targetDateStr = formatDate(targetDateObj);
+
+            if (targetDateStr === currentDayStr) {
+                const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
                 const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
                 const heightPx = (LESSON_DURATION / 30) * SLOT_HEIGHT;
 
@@ -232,18 +291,34 @@ export function renderCalendar() {
                     lessonEl.className = 'event-block event-lesson';
                     lessonEl.style.top = `${topPx}px`;
                     lessonEl.style.height = `${heightPx - 2}px`;
-                    lessonEl.innerText = `${ml.title} (${ml.timeStr})`;
+
+                    const targetTimeStr = `${String(Math.floor(targetMins / 60)).padStart(2, '0')}:${String(targetMins % 60).padStart(2, '0')}`;
+                    lessonEl.innerText = `${ml.title} (${targetTimeStr})`;
                     lessonEl.onclick = () => openLessonEditModal(ml.lessonId);
-                    lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'moved_lesson', id: ml.id, dateStr: currentDayStr });
+                    lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'moved_lesson', id: ml.id, dateStr: ml.dateStr });
                     dayCol.appendChild(lessonEl);
                 }
             }
         });
 
         state.singleEvents.forEach(e => {
-            if (e.dateStr === currentDayStr) {
-                const [h, m] = e.timeStr.split(':').map(Number);
-                const startMinutesFromBase = (h - WORK_START_HOUR) * 60 + m;
+            const [h, m] = e.timeStr.split(':').map(Number);
+            let targetMins = h * 60 + m + offsetMins;
+
+            const [y, mo, d] = e.dateStr.split('-').map(Number);
+            let targetDateObj = new Date(y, mo - 1, d);
+
+            if (targetMins >= 24 * 60) {
+                targetMins -= 24 * 60;
+                targetDateObj.setDate(targetDateObj.getDate() + 1);
+            } else if (targetMins < 0) {
+                targetMins += 24 * 60;
+                targetDateObj.setDate(targetDateObj.getDate() - 1);
+            }
+            const targetDateStr = formatDate(targetDateObj);
+
+            if (targetDateStr === currentDayStr) {
+                const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
                 const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
                 const heightPx = (e.duration / 30) * SLOT_HEIGHT;
 
@@ -273,10 +348,14 @@ export function renderCalendar() {
 export function updateCurrentTimeLine() {
     document.querySelectorAll('.current-time-line').forEach(el => el.remove());
 
+    const tz = state.currentTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
     const now = new Date();
-    const currentDayStr = formatDate(now);
-    const hour = now.getHours();
-    const minute = now.getMinutes();
+    const tzString = now.toLocaleString('en-US', { timeZone: tz });
+    const targetDate = new Date(tzString);
+
+    const currentDayStr = formatDate(targetDate);
+    const hour = targetDate.getHours();
+    const minute = targetDate.getMinutes();
 
     if (hour < WORK_START_HOUR || hour >= WORK_END_HOUR) return;
 
