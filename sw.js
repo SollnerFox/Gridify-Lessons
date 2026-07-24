@@ -1,34 +1,50 @@
-﻿const CACHE_NAME = 'gridify-v1';
-const ASSETS = [
-    './',
-    './index.html',
-    './styles.css',
-    './config.js',
-    './state.js',
-    './storage.js',
-    './auth.js',
-    './settings.js',
-    './modals.js',
-    './calendar.js',
-    './notifications.js',
-    './main.js'
+﻿// sw.js - ВИПРАВЛЕНА ВЕРСІЯ
+const CACHE_VERSION = 'v1.0.1'; // ← ЗМІНЮЙ ЦЕ ЧИСЛО при кожному оновленні
+const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
+
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/config.js',
+    '/state.js',
+    '/storage.js',
+    '/auth.js',
+    '/calendar.js',
+    '/settings.js',
+    '/modals.js',
+    '/notifications.js',
+    '/main.js',
+    '/manifest.json'
 ];
 
-self.addEventListener('install', (e) => {
-    e.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(urlsToCache);
+        })
     );
 });
 
-self.addEventListener('fetch', (e) => {
-    const url = new URL(e.request.url);
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    // Видаляємо старі версії кешу
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
 
-    // Ігноруємо не-GET запити (POST, PUT тощо) та зовнішні домени (Firebase, Firestore API)
-    if (e.request.method !== 'GET' || url.origin !== self.location.origin) {
-        return;
-    }
-
-    e.respondWith(
-        caches.match(e.request).then((res) => res || fetch(e.request))
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        caches.match(event.request).then((response) => {
+            return response || fetch(event.request);
+        })
     );
 });
