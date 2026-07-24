@@ -1,5 +1,5 @@
-﻿// sw.js - ПРИМУСОВИЙ HARD RESET
-const CACHE_VERSION = 'v1.0.3'; // ← ЗМІНЮЙ ЦЕ при кожному оновленні
+﻿// sw.js - ВИПРАВЛЕНА ВЕРСІЯ
+const CACHE_VERSION = 'v1.0.3';
 const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
 const BASE_PATH = '/Gridify-Lessons';
 
@@ -23,10 +23,11 @@ self.addEventListener('install', (event) => {
     console.log(`[SW] Installing ${CACHE_NAME}`);
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
+            console.log(`[SW] Caching ${urlsToCache.length} files`);
             return cache.addAll(urlsToCache);
         })
     );
-    self.skipWaiting(); // ← ПРИМУСОВО активуй новий SW
+    self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,7 +36,6 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
-                    // ВИДАЛЯЄМО ВСІ СТАРІ КЕШІ
                     if (cacheName !== CACHE_NAME) {
                         console.log(`[SW] Deleting old cache: ${cacheName}`);
                         return caches.delete(cacheName);
@@ -44,13 +44,32 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    self.clients.claim(); // ← ПРИМУСОВО контролюй всіх клієнтів
+    self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
+    // ✅ ВАЖЛИВО: Не кешуємо Firebase запити
+    if (url.hostname.includes('firebaseapp.com') ||
+        url.hostname.includes('firestore.googleapis.com') ||
+        url.hostname.includes('googleapis.com') ||
+        url.hostname.includes('gstatic.com') ||
+        url.hostname.includes('fonts.googleapis.com') ||
+        url.hostname.includes('cdn.jsdelivr.net')) {
+        // Пропускаємо кеш для зовнішніх сервісів
+        return;
+    }
+
+    // ✅ Для локальних файлів використовуємо кеш
     event.respondWith(
         caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+            if (response) {
+                return response;
+            }
+            return fetch(event.request).catch(() => {
+                console.log(`[SW] Fetch failed: ${event.request.url}`);
+            });
         })
     );
 });
