@@ -1,4 +1,4 @@
-﻿// sw.js - ВИПРАВЛЕНА ВЕРСІЯ
+﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
 const CACHE_VERSION = 'v1.0.3';
 const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
 const BASE_PATH = '/Gridify-Lessons';
@@ -50,14 +50,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // ✅ ВАЖЛИВО: Не кешуємо Firebase запити
+    // ✅ Firebase та зовнішні сервіси — пропускаємо Service Worker
     if (url.hostname.includes('firebaseapp.com') ||
         url.hostname.includes('firestore.googleapis.com') ||
         url.hostname.includes('googleapis.com') ||
         url.hostname.includes('gstatic.com') ||
         url.hostname.includes('fonts.googleapis.com') ||
         url.hostname.includes('cdn.jsdelivr.net')) {
-        // Пропускаємо кеш для зовнішніх сервісів
+        // Дозволяємо браузеру обробити запит нормально, без Service Worker
+        event.respondWith(fetch(event.request));
         return;
     }
 
