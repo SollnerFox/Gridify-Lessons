@@ -35,7 +35,6 @@ export const REGIONAL_TIMEZONES = [
     { zone: 'America/Argentina/Buenos_Aires', label: '(UTC-03:00) Буенос-Айрес' },
     { zone: 'America/Noronha', label: '(UTC-02:00) Фернанду-ді-Норонья' },
     { zone: 'Atlantic/Azores', label: '(UTC-01:00) Азорські острови' },
-    { zone: 'UTC', label: '(UTC+00:00) UTC' },
     { zone: 'Europe/London', label: '(UTC+00:00) Лондон, Дублін' },
     { zone: 'Europe/Warsaw', label: '(UTC+01:00) Варшава, Берлін' },
     { zone: 'Europe/Kyiv', label: '(UTC+02:00) Київ, Кишинів' },

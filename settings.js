@@ -52,20 +52,39 @@ export function updateTimezoneHint() {
     hintEl.innerText = `Зона: ${found ? found.label : state.currentTz}`;
 }
 
+// settings.js - ПРОБЛЕМА 1: Неправильна обробка customColors при першому завантаженні
+// ВИПРАВЛЕНА ФУНКЦІЯ applySavedColors
 export function applySavedColors() {
     const isLight = state.isLightTheme;
 
-    if (!state.customColors || typeof state.customColors !== 'object' || (!state.customColors.light && !state.customColors.dark)) {
-        const oldCustom = (state.customColors && !Array.isArray(state.customColors)) ? { ...state.customColors } : {};
-        state.customColors = { light: {}, dark: oldCustom };
+    // ВИПРАВЛЕННЯ: Правильна ініціалізація customColors
+    if (!state.customColors || typeof state.customColors !== 'object') {
+        state.customColors = { light: {}, dark: {} };
+    }
+
+    // Якщо структура старої версії (без light/dark), мігруємо
+    if (!state.customColors.light && !state.customColors.dark) {
+        const oldColors = state.customColors;
+        state.customColors = {
+            light: {},
+            dark: oldColors
+        };
     }
 
     const currentThemeColors = state.customColors[isLight ? 'light' : 'dark'] || {};
 
     const defaults = isLight ? {
-        '--lesson-color': '#93c5fd', '--prep-color': '#fde047', '--prep60-color': '#6ee7b7', '--non-working-bg': '#e9ecef', '--slot-hover-bg': '#e2e6ea'
+        '--lesson-color': '#93c5fd',
+        '--prep-color': '#fde047',
+        '--prep60-color': '#6ee7b7',
+        '--non-working-bg': '#e9ecef',
+        '--slot-hover-bg': '#e2e6ea'
     } : {
-        '--lesson-color': '#3b82f6', '--prep-color': '#f59e0b', '--prep60-color': '#10b981', '--non-working-bg': '#22252e', '--slot-hover-bg': '#2d323e'
+        '--lesson-color': '#3b82f6',
+        '--prep-color': '#f59e0b',
+        '--prep60-color': '#10b981',
+        '--non-working-bg': '#22252e',
+        '--slot-hover-bg': '#2d323e'
     };
 
     const root = document.documentElement;
@@ -75,13 +94,17 @@ export function applySavedColors() {
     syncColorPreviews();
 }
 
+// settings.js - ПРОБЛЕМА 2: Неправильна обробка updateThemeColor
+// ВИПРАВЛЕНА ФУНКЦІЯ updateThemeColor
 export function updateThemeColor(variableName, hexValue) {
     document.documentElement.style.setProperty(variableName, hexValue);
     const isLight = state.isLightTheme;
 
-    if (!state.customColors || typeof state.customColors !== 'object' || (!state.customColors.light && !state.customColors.dark)) {
+    // ВИПРАВЛЕННЯ: Правильна ініціалізація
+    if (!state.customColors || typeof state.customColors !== 'object') {
         state.customColors = { light: {}, dark: {} };
     }
+
     if (!state.customColors.light) state.customColors.light = {};
     if (!state.customColors.dark) state.customColors.dark = {};
 
@@ -90,29 +113,63 @@ export function updateThemeColor(variableName, hexValue) {
     syncColorPreviews();
 }
 
+// settings.js - ПРОБЛЕМА 3: Неправильна обробка syncColorPreviews
+// ВИПРАВЛЕНА ФУНКЦІЯ syncColorPreviews
 function syncColorPreviews() {
     const isLight = state.isLightTheme;
-    if (!state.customColors || !state.customColors.light) {
-        state.customColors = { light: {}, dark: state.customColors || {} };
+
+    // ВИПРАВЛЕННЯ: Правильна ініціалізація
+    if (!state.customColors || typeof state.customColors !== 'object') {
+        state.customColors = { light: {}, dark: {} };
     }
+
+    if (!state.customColors.light) state.customColors.light = {};
+    if (!state.customColors.dark) state.customColors.dark = {};
+
     const currentThemeColors = state.customColors[isLight ? 'light' : 'dark'] || {};
 
     const defaults = isLight ? {
-        '--lesson-color': '#93c5fd', '--prep-color': '#fde047', '--prep60-color': '#6ee7b7', '--non-working-bg': '#e9ecef'
+        '--lesson-color': '#93c5fd',
+        '--prep-color': '#fde047',
+        '--prep60-color': '#6ee7b7',
+        '--non-working-bg': '#e9ecef'
     } : {
-        '--lesson-color': '#3b82f6', '--prep-color': '#f59e0b', '--prep60-color': '#10b981', '--non-working-bg': '#22252e'
+        '--lesson-color': '#3b82f6',
+        '--prep-color': '#f59e0b',
+        '--prep60-color': '#10b981',
+        '--non-working-bg': '#22252e'
     };
 
     const rootStyle = getComputedStyle(document.documentElement);
-    if(document.getElementById('colorLesson')) document.getElementById('colorLesson').value = currentThemeColors['--lesson-color'] || defaults['--lesson-color'];
-    if(document.getElementById('colorPrep30')) document.getElementById('colorPrep30').value = currentThemeColors['--prep-color'] || defaults['--prep-color'];
-    if(document.getElementById('colorPrep60')) document.getElementById('colorPrep60').value = currentThemeColors['--prep60-color'] || defaults['--prep60-color'];
-    if(document.getElementById('colorNonWorking')) document.getElementById('colorNonWorking').value = currentThemeColors['--non-working-bg'] || defaults['--non-working-bg'];
 
-    if(document.getElementById('prevLesson')) document.getElementById('prevLesson').style.background = rootStyle.getPropertyValue('--lesson-color');
-    if(document.getElementById('prevPrep30')) document.getElementById('prevPrep30').style.background = rootStyle.getPropertyValue('--prep-color');
-    if(document.getElementById('prevPrep60')) document.getElementById('prevPrep60').style.background = rootStyle.getPropertyValue('--prep60-color');
-    if(document.getElementById('prevNonWorking')) document.getElementById('prevNonWorking').style.background = rootStyle.getPropertyValue('--non-working-bg');
+    // ВИПРАВЛЕННЯ: Безпечна обробка елементів
+    const colorInputs = [
+        { id: 'colorLesson', key: '--lesson-color' },
+        { id: 'colorPrep30', key: '--prep-color' },
+        { id: 'colorPrep60', key: '--prep60-color' },
+        { id: 'colorNonWorking', key: '--non-working-bg' }
+    ];
+
+    colorInputs.forEach(({ id, key }) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = currentThemeColors[key] || defaults[key];
+        }
+    });
+
+    const colorPreviews = [
+        { id: 'prevLesson', key: '--lesson-color' },
+        { id: 'prevPrep30', key: '--prep-color' },
+        { id: 'prevPrep60', key: '--prep60-color' },
+        { id: 'prevNonWorking', key: '--non-working-bg' }
+    ];
+
+    colorPreviews.forEach(({ id, key }) => {
+        const preview = document.getElementById(id);
+        if (preview) {
+            preview.style.background = rootStyle.getPropertyValue(key);
+        }
+    });
 }
 
 export function initNotifications() {
@@ -151,6 +208,7 @@ export function toggleNotifications(checked) {
     }
 }
 
+// settings.js - ВИПРАВЛЕНА ФУНКЦІЯ checkUpcomingEvents
 export function checkUpcomingEvents() {
     if (!state.isNotifEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
 
@@ -166,6 +224,10 @@ export function checkUpcomingEvents() {
         if (diffMin > 0 && diffMin <= 10 && !state.notifiedEvents.has(eventKey)) {
             notificationManager.trigger(title, `Починається о ${timeStr}`);
             state.notifiedEvents.add(eventKey);
+        }
+        // ✅ ДОДАТИ: Видаляємо старі сповіщення (більше 10 хв тому)
+        else if (diffMin < -10) {
+            state.notifiedEvents.delete(eventKey);
         }
     };
 

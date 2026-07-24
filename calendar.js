@@ -1,15 +1,40 @@
 ﻿import { state, getMonday, formatDate } from "./state.js";
 import { saveAllData } from "./storage.js";
-import { showContextMenu } from "./modals.js";
-import { openPrepModal, openLessonEditModal } from "./modals.js";
+import { showContextMenu, openPrepModal, openLessonEditModal } from "./modals.js";
 import { WORK_START_HOUR, WORK_END_HOUR, LESSON_DURATION, SLOT_HEIGHT } from "./config.js";
 
 export function getTzOffsetMinutes() {
-    const tz = state.currentTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let tz = state.currentTz || 'Europe/Kyiv';
+
+    if (tz === 'GMT' || tz === 'UTC') {
+        tz = 'Etc/UTC';
+    }
+
     const now = new Date();
-    const localDate = new Date(now.toLocaleString('en-US'));
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-    return Math.round((tzDate - localDate) / 60000);
+
+    const kyivFormatter = new Intl.DateTimeFormat('en', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Europe/Kyiv'
+    });
+
+    const targetFormatter = new Intl.DateTimeFormat('en', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: tz
+    });
+
+    const [kh, km] = kyivFormatter.format(now).split(':').map(Number);
+    const [th, tm] = targetFormatter.format(now).split(':').map(Number);
+
+    let diff = (th * 60 + tm) - (kh * 60 + km);
+
+    if (diff > 720) diff -= 1440;
+    if (diff < -720) diff += 1440;
+
+    return diff;
 }
 
 export function changeWeek(offset) {
@@ -104,7 +129,10 @@ export function renderCalendar() {
     for (let i = 0; i < 7; i++) {
         const dayDate = new Date(state.currentWeekStart);
         dayDate.setDate(dayDate.getDate() + i);
-        header.innerHTML += `<div class="header-cell">${daysShort[i]}<br><span>${dayDate.getDate()}.${dayDate.getMonth() + 1}</span></div>`;
+        // ВИПРАВЛЕННЯ: Правильне форматування дати
+        const dayNum = dayDate.getDate();
+        const monthNum = dayDate.getMonth() + 1;
+        header.innerHTML += `<div class="header-cell">${daysShort[i]}<br><span>${dayNum}.${monthNum}</span></div>`;
     }
 
     const body = document.getElementById('gridBody');
@@ -115,8 +143,17 @@ export function renderCalendar() {
     timeCol.className = 'time-column';
 
     for (let hour = WORK_START_HOUR; hour < WORK_END_HOUR; hour++) {
-        const baseTimeStr = `${String(hour).padStart(2, '0')}:00`;
-        timeCol.innerHTML += `<div class="time-cell">${baseTimeStr}</div>`;
+        let total = hour * 60 + offsetMins;
+        total = ((total % 1440) + 1440) % 1440;
+
+        const hh = Math.floor(total / 60);
+        const mm = total % 60;
+
+        timeCol.innerHTML += `
+        <div class="time-cell">
+            ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}
+        </div>
+    `;
     }
     body.appendChild(timeCol);
 
@@ -131,23 +168,9 @@ export function renderCalendar() {
 
         for (let hour = WORK_START_HOUR; hour < WORK_END_HOUR; hour++) {
             ['00', '30'].forEach(minute => {
-                let localMins = hour * 60 + parseInt(minute) - offsetMins;
-                let localDayDate = new Date(currentDayDate);
-
-                if (localMins < 0) {
-                    localMins += 24 * 60;
-                    localDayDate.setDate(localDayDate.getDate() - 1);
-                } else if (localMins >= 24 * 60) {
-                    localMins -= 24 * 60;
-                    localDayDate.setDate(localDayDate.getDate() + 1);
-                }
-
-                const localTimeStr = `${String(Math.floor(localMins / 60)).padStart(2, '0')}:${String(localMins % 60).padStart(2, '0')}`;
-                const localDateStr = formatDate(localDayDate);
-                const localDayOfWeek = localDayDate.getDay();
-
-                const nwKey = `${localDateStr}_${localTimeStr}`;
-                const recurringKey = `${localDayOfWeek}_${localTimeStr}`;
+                const slotTimeStr = `${String(hour).padStart(2, '0')}:${minute}`;
+                const nwKey = `${currentDayStr}_${slotTimeStr}`;
+                const recurringKey = `${dayOfWeek}_${slotTimeStr}`;
 
                 const isRecurring = state.recurringNonWorkingSlots.includes(recurringKey);
                 const hasException = state.workingExceptions && state.workingExceptions.includes(nwKey);
@@ -175,7 +198,7 @@ export function renderCalendar() {
                 };
 
                 slotEl.oncontextmenu = (e) => {
-                    if (!state.isNonWorkingEditMode) showContextMenu(e, { dateStr: localDateStr, timeStr: localTimeStr, type: 'slot' });
+                    if (!state.isNonWorkingEditMode) showContextMenu(e, { dateStr: currentDayStr, timeStr: slotTimeStr, type: 'slot' });
                 };
 
                 dayCol.appendChild(slotEl);
@@ -184,158 +207,145 @@ export function renderCalendar() {
 
         state.lessons.forEach(l => {
             const [h, m] = l.startTime.split(':').map(Number);
-            let targetMins = h * 60 + m + offsetMins;
-            let targetDayOfWeek = l.dayOfWeek;
-            let dayShift = 0;
 
-            if (targetMins >= 24 * 60) {
-                targetMins -= 24 * 60;
-                targetDayOfWeek = (targetDayOfWeek + 1) % 7;
-                dayShift = 1;
-            } else if (targetMins < 0) {
-                targetMins += 24 * 60;
-                targetDayOfWeek = (targetDayOfWeek + 6) % 7;
-                dayShift = -1;
-            }
+            if (l.dayOfWeek === dayOfWeek) {
+                if (currentDayStr >= l.startDate && currentDayStr <= l.endDate) {
+                    if (state.cancelledDates.includes(`${l.id}_${currentDayStr}`)) return;
 
-            if (targetDayOfWeek === dayOfWeek) {
-                let originalDateObj = new Date(currentDayDate);
-                originalDateObj.setDate(originalDateObj.getDate() - dayShift);
-                const originalDateStr = formatDate(originalDateObj);
-
-                if (originalDateStr >= l.startDate && originalDateStr <= l.endDate) {
-                    if (state.cancelledDates.includes(`${l.id}_${originalDateStr}`)) return;
-
-                    const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
+                    const startMinutesFromBase = (h * 60 + m) - (WORK_START_HOUR * 60);
                     const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
                     const heightPx = (LESSON_DURATION / 30) * SLOT_HEIGHT;
 
-                    if (topPx >= 0) {
-                        const lessonEl = document.createElement('div');
-                        lessonEl.className = 'event-block event-lesson';
-                        lessonEl.style.top = `${topPx}px`;
-                        lessonEl.style.height = `${heightPx - 2}px`;
+                    const lessonEl = document.createElement('div');
+                    lessonEl.className = 'event-block event-lesson';
+                    lessonEl.style.top = `${topPx}px`;
+                    lessonEl.style.height = `${heightPx - 2}px`;
 
-                        const formattedEndDate = l.endDate ? l.endDate.split('-').reverse().join('.') : '';
-                        const targetTimeStr = `${String(Math.floor(targetMins / 60)).padStart(2, '0')}:${String(targetMins % 60).padStart(2, '0')}`;
+                    const formattedEndDate = l.endDate ? l.endDate.split('-').reverse().join('.') : '';
 
-                        lessonEl.innerHTML = `
-                            <div class="lesson-title">${l.title} (${targetTimeStr})</div>
-                            <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
-                        `;
+                    lessonEl.innerHTML = `
+                        <div class="lesson-title">${l.title}</div>
+                        <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
+                    `;
 
-                        lessonEl.onclick = () => openLessonEditModal(l.id);
-                        lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'lesson', id: l.id, dateStr: originalDateStr });
-                        dayCol.appendChild(lessonEl);
-                    }
+                    lessonEl.onclick = () => openLessonEditModal(l.id);
+                    lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'lesson', id: l.id, dateStr: currentDayStr });
+                    dayCol.appendChild(lessonEl);
 
                     if (l.hasPrep) {
                         const prepStartMinutes = startMinutesFromBase - 30;
                         const prepTopPx = (prepStartMinutes / 30) * SLOT_HEIGHT;
                         const prepHeightPx = (30 / 30) * SLOT_HEIGHT;
 
-                        if (prepTopPx >= 0) {
-                            const prepKey = `${l.id}_${originalDateStr}`;
-                            const prepData = state.prepOverrides[prepKey];
+                        const prepKey = `${l.id}_${currentDayStr}`;
+                        const prepData = state.prepOverrides[prepKey];
+                        const isCompleted = state.completedPreps.includes(prepKey);
 
-                            let sName = '';
-                            let gName = l.title;
-                            if (typeof prepData === 'string') {
-                                sName = prepData;
-                            } else if (prepData) {
-                                sName = prepData.studentName || '';
-                                gName = prepData.groupName || l.title;
-                            }
-
-                            const prepEl = document.createElement('div');
-                            prepEl.className = 'event-block event-prep';
-                            prepEl.style.top = `${prepTopPx}px`;
-                            prepEl.style.height = `${prepHeightPx - 2}px`;
-                            prepEl.style.minHeight = '34px';
-
-                            const studentText = sName.trim() ? sName : 'Вільно';
-                            prepEl.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
-
-                            prepEl.onclick = () => openPrepModal(prepKey, sName, gName, true);
-                            prepEl.oncontextmenu = (e) => showContextMenu(e, { type: 'prep_override', key: prepKey });
-                            dayCol.appendChild(prepEl);
+                        let sName = '';
+                        let gName = l.title;
+                        if (typeof prepData === 'string') {
+                            sName = prepData;
+                        } else if (prepData) {
+                            sName = prepData.studentName || '';
+                            gName = prepData.groupName || l.title;
                         }
+
+                        const prepEl = document.createElement('div');
+                        prepEl.className = `event-block event-prep ${isCompleted ? 'completed' : ''}`;
+                        prepEl.style.top = `${prepTopPx}px`;
+                        prepEl.style.height = `${prepHeightPx - 2}px`;
+                        prepEl.style.minHeight = '34px';
+
+                        const studentText = sName.trim() ? sName : 'Вільно';
+                        prepEl.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
+
+                        prepEl.onclick = () => openPrepModal(prepKey, sName, gName, true);
+                        prepEl.oncontextmenu = (e) => showContextMenu(e, { type: 'prep_override', key: prepKey });
+                        dayCol.appendChild(prepEl);
                     }
                 }
             }
         });
 
         state.movedLessons.forEach(ml => {
-            const [h, m] = ml.timeStr.split(':').map(Number);
-            let targetMins = h * 60 + m + offsetMins;
-
-            const [y, mo, d] = ml.dateStr.split('-').map(Number);
-            let targetDateObj = new Date(y, mo - 1, d);
-
-            if (targetMins >= 24 * 60) {
-                targetMins -= 24 * 60;
-                targetDateObj.setDate(targetDateObj.getDate() + 1);
-            } else if (targetMins < 0) {
-                targetMins += 24 * 60;
-                targetDateObj.setDate(targetDateObj.getDate() - 1);
-            }
-            const targetDateStr = formatDate(targetDateObj);
-
-            if (targetDateStr === currentDayStr) {
-                const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
+            if (ml.dateStr === currentDayStr) {
+                const [h, m] = ml.timeStr.split(':').map(Number);
+                const startMinutesFromBase = (h * 60 + m) - (WORK_START_HOUR * 60);
                 const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
                 const heightPx = (LESSON_DURATION / 30) * SLOT_HEIGHT;
 
-                if (topPx >= 0) {
-                    const lessonEl = document.createElement('div');
-                    lessonEl.className = 'event-block event-lesson';
-                    lessonEl.style.top = `${topPx}px`;
-                    lessonEl.style.height = `${heightPx - 2}px`;
+                const lessonEl = document.createElement('div');
+                lessonEl.className = 'event-block event-lesson';
+                lessonEl.style.top = `${topPx}px`;
+                lessonEl.style.height = `${heightPx - 2}px`;
 
-                    const targetTimeStr = `${String(Math.floor(targetMins / 60)).padStart(2, '0')}:${String(targetMins % 60).padStart(2, '0')}`;
-                    lessonEl.innerText = `${ml.title} (${targetTimeStr})`;
-                    lessonEl.onclick = () => openLessonEditModal(ml.lessonId);
-                    lessonEl.oncontextmenu = (e) => showContextMenu(e, { type: 'moved_lesson', id: ml.id, dateStr: ml.dateStr });
-                    dayCol.appendChild(lessonEl);
+                lessonEl.innerText = ml.title;
+                lessonEl.onclick = () => openLessonEditModal(ml.lessonId);
+                lessonEl.oncontextmenu = (e) => showContextMenu(e, {
+                    type: 'moved_lesson',
+                    id: ml.id,
+                    lessonId: ml.lessonId,
+                    dateStr: ml.dateStr
+                });
+                dayCol.appendChild(lessonEl);
+
+                // Якщо базовий урок містить відпрацювання, рендеримо його разом із перенесеним уроком
+                const baseLesson = state.lessons.find(l => l.id === ml.lessonId);
+                if (baseLesson && baseLesson.hasPrep) {
+                    const prepStartMinutes = startMinutesFromBase - 30;
+                    const prepTopPx = (prepStartMinutes / 30) * SLOT_HEIGHT;
+                    const prepHeightPx = (30 / 30) * SLOT_HEIGHT;
+
+                    // ВИПРАВЛЕННЯ: Використовуємо ml.dateStr замість currentDayStr для ключа
+                    const prepKey = `${ml.lessonId}_${ml.dateStr}`;
+                    const prepData = state.prepOverrides[prepKey];
+                    const isCompleted = state.completedPreps.includes(prepKey);
+
+                    let sName = '';
+                    let gName = ml.title;
+                    if (typeof prepData === 'string') {
+                        sName = prepData;
+                    } else if (prepData) {
+                        sName = prepData.studentName || '';
+                        gName = prepData.groupName || ml.title;
+                    }
+
+                    const prepEl = document.createElement('div');
+                    prepEl.className = `event-block event-prep ${isCompleted ? 'completed' : ''}`;
+                    prepEl.style.top = `${prepTopPx}px`;
+                    prepEl.style.height = `${prepHeightPx - 2}px`;
+                    prepEl.style.minHeight = '34px';
+
+                    const studentText = sName.trim() ? sName : 'Вільно';
+                    prepEl.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
+
+                    prepEl.onclick = () => openPrepModal(prepKey, sName, gName, true);
+                    prepEl.oncontextmenu = (e) => showContextMenu(e, { type: 'prep_override', key: prepKey });
+                    dayCol.appendChild(prepEl);
                 }
             }
         });
 
         state.singleEvents.forEach(e => {
-            const [h, m] = e.timeStr.split(':').map(Number);
-            let targetMins = h * 60 + m + offsetMins;
-
-            const [y, mo, d] = e.dateStr.split('-').map(Number);
-            let targetDateObj = new Date(y, mo - 1, d);
-
-            if (targetMins >= 24 * 60) {
-                targetMins -= 24 * 60;
-                targetDateObj.setDate(targetDateObj.getDate() + 1);
-            } else if (targetMins < 0) {
-                targetMins += 24 * 60;
-                targetDateObj.setDate(targetDateObj.getDate() - 1);
-            }
-            const targetDateStr = formatDate(targetDateObj);
-
-            if (targetDateStr === currentDayStr) {
-                const startMinutesFromBase = targetMins - (WORK_START_HOUR * 60);
+            if (e.dateStr === currentDayStr) {
+                const [h, m] = e.timeStr.split(':').map(Number);
+                const startMinutesFromBase = (h * 60 + m) - (WORK_START_HOUR * 60);
                 const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
                 const heightPx = (e.duration / 30) * SLOT_HEIGHT;
+                const isCompleted = state.completedPreps.includes(e.id);
 
-                if (topPx >= 0) {
-                    let sText = e.studentName || 'ВІЛЬНО';
-                    if (e.groupName) sText += ` (${e.groupName})`;
+                let sText = e.studentName || 'ВІЛЬНО';
+                if (e.groupName) sText += ` (${e.groupName})`;
 
-                    const prepEl = document.createElement('div');
-                    prepEl.className = 'event-block event-prep60';
-                    prepEl.style.top = `${topPx}px`;
-                    prepEl.style.height = `${heightPx - 2}px`;
-                    prepEl.innerText = `Відпрацювання (1 год): ${sText}`;
+                const prepEl = document.createElement('div');
+                prepEl.className = `event-block event-prep60 ${isCompleted ? 'completed' : ''}`;
+                prepEl.style.top = `${topPx}px`;
+                prepEl.style.height = `${heightPx - 2}px`;
+                prepEl.innerText = `Відпрацювання (1 год): ${sText}`;
 
-                    prepEl.onclick = () => openPrepModal(e.id, e.studentName || '', e.groupName || '', false);
-                    prepEl.oncontextmenu = (ev) => showContextMenu(ev, { type: 'single_event', id: e.id });
-                    dayCol.appendChild(prepEl);
-                }
+                prepEl.onclick = () => openPrepModal(e.id, e.studentName || '', e.groupName || '', false);
+                prepEl.oncontextmenu = (ev) => showContextMenu(ev, { type: 'single_event', id: e.id });
+                dayCol.appendChild(prepEl);
             }
         });
 
@@ -348,19 +358,28 @@ export function renderCalendar() {
 export function updateCurrentTimeLine() {
     document.querySelectorAll('.current-time-line').forEach(el => el.remove());
 
-    const tz = state.currentTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let tz = state.currentTz || 'Europe/Kyiv';
+    if (tz === 'GMT' || tz === 'UTC') {
+        tz = 'Etc/UTC';
+    }
+
     const now = new Date();
     const tzString = now.toLocaleString('en-US', { timeZone: tz });
     const targetDate = new Date(tzString);
 
-    const currentDayStr = formatDate(targetDate);
-    const hour = targetDate.getHours();
-    const minute = targetDate.getMinutes();
+    const offsetMins = getTzOffsetMinutes();
+    const targetMins = targetDate.getHours() * 60 + targetDate.getMinutes();
+    const kyivMins = targetMins - offsetMins;
 
-    if (hour < WORK_START_HOUR || hour >= WORK_END_HOUR) return;
+    const kyivHour = Math.floor(kyivMins / 60);
+    const kyivMin = kyivMins % 60;
+
+    if (kyivHour < WORK_START_HOUR || kyivHour >= WORK_END_HOUR) return;
 
     const body = document.getElementById('gridBody');
     if (!body) return;
+
+    const currentDayStr = formatDate(targetDate);
 
     for (let i = 0; i < 7; i++) {
         const dayDate = new Date(state.currentWeekStart);
@@ -368,7 +387,7 @@ export function updateCurrentTimeLine() {
         if (formatDate(dayDate) === currentDayStr) {
             const dayCols = body.querySelectorAll('.day-col');
             if (dayCols[i]) {
-                const startMinutesFromBase = (hour - WORK_START_HOUR) * 60 + minute;
+                const startMinutesFromBase = (kyivHour - WORK_START_HOUR) * 60 + kyivMin;
                 const topPx = (startMinutesFromBase / 30) * SLOT_HEIGHT;
 
                 const lineEl = document.createElement('div');

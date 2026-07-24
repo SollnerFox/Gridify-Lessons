@@ -9,35 +9,44 @@ import { setSyncStatus, forceSaveToCloud } from "./storage.js";
 import { renderCalendar } from "./calendar.js";
 import { applySavedTheme, applySavedColors } from "./settings.js";
 
-export function initAuthListeners() {
-    const handleGoogleAuth = async () => {
-        const provider = new GoogleAuthProvider();
-        try {
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                try {
-                    await linkWithPopup(auth.currentUser, provider);
-                    alert("Акаунт успішно прив'язано до Google!");
-                } catch (linkError) {
-                    if (linkError.code === 'auth/credential-already-in-use') {
-                        const credential = linkError.credential;
-                        await signOut(auth);
-                        if (credential) {
-                            await signInWithCredential(auth, credential);
-                        } else {
-                            await signInWithPopup(auth, provider);
-                        }
+// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ handleGoogleAuth (виділена окремо)
+async function handleGoogleAuth() {
+    const provider = new GoogleAuthProvider();
+    try {
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+            try {
+                await linkWithPopup(auth.currentUser, provider);
+                alert("Акаунт успішно прив'язано до Google!");
+            } catch (linkError) {
+                if (linkError.code === 'auth/credential-already-in-use') {
+                    const credential = linkError.credential;
+                    await signOut(auth);
+                    if (credential) {
+                        await signInWithCredential(auth, credential);
                     } else {
-                        throw linkError;
+                        await signInWithPopup(auth, provider);
                     }
+                } else {
+                    throw linkError;
                 }
-            } else {
-                await signInWithPopup(auth, provider);
             }
-        } catch (error) {
-            console.error("Помилка авторизації:", error);
+        } else {
+            await signInWithPopup(auth, provider);
         }
-    };
+    } catch (error) {
+        console.error("Помилка авторизації:", error);
+    }
+}
 
+function cleanupSnapshotListener() {
+    if (state.unsubscribeSnapshot) {
+        state.unsubscribeSnapshot();
+        state.unsubscribeSnapshot = null;
+    }
+}
+
+
+export function initAuthListeners() {
     document.getElementById('btnGoogleSignIn')?.addEventListener('click', handleGoogleAuth);
     document.getElementById('btnGoogleSignInDropdown')?.addEventListener('click', handleGoogleAuth);
 
@@ -68,8 +77,31 @@ export function initAuthListeners() {
             setSyncStatus("Офлайн");
         }
     });
+
+    onAuthStateChanged(auth, async (user) => {
+        const authModal = document.getElementById('authModal');
+        if (user) {
+            state.currentUser = user;
+            updateSettingsUI();
+            if (authModal) authModal.style.display = 'none';
+
+            if (user.isAnonymous) {
+                setSyncStatus("Локальний режим");
+                cleanupSnapshotListener(); // ← ДОДАНО
+            } else {
+                await checkSyncConflict(user.uid);
+            }
+        } else {
+            state.currentUser = null;
+            cleanupSnapshotListener(); // ← ДОДАНО
+            updateSettingsUI();
+            if (authModal) authModal.style.display = 'flex';
+            setSyncStatus("Офлайн");
+        }
+    });
 }
 
+// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ updateSettingsUI
 export function updateSettingsUI() {
     const section = document.getElementById('authSettingsSection');
     if (!section) return;
@@ -95,6 +127,12 @@ export function updateSettingsUI() {
 
     document.getElementById('btnLogout')?.addEventListener('click', async () => {
         try {
+            // Очищуємо слухач перед логаутом
+            if (state.unsubscribeSnapshot) {
+                state.unsubscribeSnapshot();
+                state.unsubscribeSnapshot = null;
+            }
+
             await signOut(auth);
             state.currentUser = null;
             localStorage.clear();
@@ -106,33 +144,7 @@ export function updateSettingsUI() {
 
     const dropdownBtn = document.getElementById('btnGoogleSignInDropdown');
     if (dropdownBtn) {
-        dropdownBtn.addEventListener('click', async () => {
-            const provider = new GoogleAuthProvider();
-            try {
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
-                    try {
-                        await linkWithPopup(auth.currentUser, provider);
-                    } catch (linkError) {
-                        if (linkError.code === 'auth/credential-already-in-use') {
-                            const credential = linkError.credential;
-                            await signOut(auth);
-                            if (credential) {
-                                await signInWithCredential(auth, credential);
-                            } else {
-                                await signInWithPopup(auth, provider);
-                            }
-                        } else {
-                            throw linkError;
-                        }
-                    }
-                } else {
-                    await signInWithPopup(auth, provider);
-                }
-                updateSettingsUI();
-            } catch (error) {
-                console.error("Помилка авторизації:", error);
-            }
-        });
+        dropdownBtn.addEventListener('click', handleGoogleAuth);
     }
 }
 
@@ -182,6 +194,7 @@ async function checkSyncConflict(uid) {
             recurringNonWorkingSlots: state.recurringNonWorkingSlots,
             workingExceptions: state.workingExceptions || [],
             prepOverrides: state.prepOverrides,
+            completedPreps: state.completedPreps, // ← ДОДАНО
             customColors: state.customColors,
             settings: {
                 isNotifEnabled: state.isNotifEnabled,
@@ -213,17 +226,19 @@ async function checkSyncConflict(uid) {
     }
 }
 
+// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ showConflictModal
 function showConflictModal(cloudData) {
     const conflictModal = document.getElementById('conflictModal');
     if (conflictModal) conflictModal.style.display = 'flex';
 
     const cloudDate = new Date(cloudData.meta.lastUpdated).toLocaleString('uk-UA');
-    document.getElementById('cloudMetaInfo').innerText = `Оновлено: ${cloudDate}\nЗанять: ${cloudData.meta.totalLessons}`;
+    document.getElementById('cloudMetaInfo').innerText = `Оновлено: ${cloudDate}\nЗанять: ${cloudData.meta.totalLessons}\nВиконано: ${cloudData.meta.totalCompletedPreps || 0}`;
 
     const localTimestamp = localStorage.getItem('app_last_updated') ? Number(localStorage.getItem('app_last_updated')) : Date.now();
     const localDate = new Date(localTimestamp).toLocaleString('uk-UA');
     const totalLocalLessons = state.lessons.length + state.movedLessons.length;
-    document.getElementById('localMetaInfo').innerText = `Оновлено: ${localDate}\nЗанять: ${totalLocalLessons}`;
+    const totalLocalCompletedPreps = state.completedPreps.length;
+    document.getElementById('localMetaInfo').innerText = `Оновлено: ${localDate}\nЗанять: ${totalLocalLessons}\nВиконано: ${totalLocalCompletedPreps}`;
 
     document.getElementById('btnUseCloud').onclick = () => {
         applyCloudData(cloudData.payload);
@@ -238,6 +253,7 @@ function showConflictModal(cloudData) {
     };
 }
 
+// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ applyCloudData
 function applyCloudData(payload) {
     state.lessons = payload.lessons || [];
     state.movedLessons = payload.movedLessons || [];
@@ -247,6 +263,7 @@ function applyCloudData(payload) {
     state.recurringNonWorkingSlots = payload.recurringNonWorkingSlots || [];
     state.workingExceptions = payload.workingExceptions || [];
     state.prepOverrides = payload.prepOverrides || {};
+    state.completedPreps = payload.completedPreps || []; // ← ДОДАНО
     state.customColors = payload.customColors || {};
 
     if (payload.settings) {
@@ -263,6 +280,7 @@ function applyCloudData(payload) {
     localStorage.setItem('app_recurring_non_working', JSON.stringify(state.recurringNonWorkingSlots));
     localStorage.setItem('app_working_exceptions', JSON.stringify(state.workingExceptions));
     localStorage.setItem('app_prep_overrides', JSON.stringify(state.prepOverrides));
+    localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps)); // ← ДОДАНО
     localStorage.setItem('app_custom_colors', JSON.stringify(state.customColors));
     localStorage.setItem('app_notif_enabled', JSON.stringify(state.isNotifEnabled));
     localStorage.setItem('app_light_theme', JSON.stringify(state.isLightTheme));
@@ -273,6 +291,7 @@ function applyCloudData(payload) {
     renderCalendar();
 }
 
+// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ initSnapshotListener
 function initSnapshotListener(uid) {
     if (state.unsubscribeSnapshot) state.unsubscribeSnapshot();
     const docRef = doc(db, "users", uid);
@@ -280,7 +299,47 @@ function initSnapshotListener(uid) {
         if (docSnap.exists()) {
             const source = docSnap.metadata.hasPendingWrites ? "Local" : "Server";
             if (source === "Server") {
-                applyCloudData(docSnap.data().payload);
+                const cloudPayload = docSnap.data().payload;
+
+                // Перевіряємо, чи змінилися дані (крім completedPreps)
+                const localDataChanged = JSON.stringify({
+                    lessons: state.lessons,
+                    movedLessons: state.movedLessons,
+                    cancelledDates: state.cancelledDates,
+                    singleEvents: state.singleEvents,
+                    nonWorkingSlots: state.nonWorkingSlots,
+                    recurringNonWorkingSlots: state.recurringNonWorkingSlots,
+                    workingExceptions: state.workingExceptions,
+                    prepOverrides: state.prepOverrides,
+                    customColors: state.customColors,
+                    settings: {
+                        isNotifEnabled: state.isNotifEnabled,
+                        isLightTheme: state.isLightTheme,
+                        currentTz: state.currentTz
+                    }
+                }) !== JSON.stringify({
+                    lessons: cloudPayload.lessons,
+                    movedLessons: cloudPayload.movedLessons,
+                    cancelledDates: cloudPayload.cancelledDates,
+                    singleEvents: cloudPayload.singleEvents,
+                    nonWorkingSlots: cloudPayload.nonWorkingSlots,
+                    recurringNonWorkingSlots: cloudPayload.recurringNonWorkingSlots,
+                    workingExceptions: cloudPayload.workingExceptions,
+                    prepOverrides: cloudPayload.prepOverrides,
+                    customColors: cloudPayload.customColors,
+                    settings: cloudPayload.settings
+                });
+
+                // Якщо основні дані не змінилися, просто оновлюємо completedPreps
+                if (!localDataChanged) {
+                    state.completedPreps = cloudPayload.completedPreps || [];
+                    localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps));
+                    renderCalendar();
+                } else {
+                    // Якщо основні дані змінилися, завантажуємо все
+                    applyCloudData(cloudPayload);
+                }
+
                 setSyncStatus("Синхронізовано");
             }
         }

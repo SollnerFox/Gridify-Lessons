@@ -725,3 +725,8 @@ body.light-theme .event-block {
 .calendar-container:not(.edit-non-working) .slot.non-working:hover {
   background-color: transparent !important;
 }
+
+
+.event-prep.completed, .event-prep60.completed {
+  text-decoration: line-through;
+}

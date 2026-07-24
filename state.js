@@ -12,6 +12,8 @@ export function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+// state.js - ПРОБЛЕМА 1: Відсутня ініціалізація unsubscribeSnapshot
+// ВИПРАВЛЕНА ФУНКЦІЯ state
 export const state = {
     currentWeekStart: getMonday(new Date()),
     isNonWorkingEditMode: false,
@@ -26,11 +28,14 @@ export const state = {
     recurringNonWorkingSlots: JSON.parse(localStorage.getItem('app_recurring_non_working') || '[]'),
     workingExceptions: JSON.parse(localStorage.getItem('app_working_exceptions') || '[]'),
     prepOverrides: JSON.parse(localStorage.getItem('app_prep_overrides') || '{}'),
+    completedPreps: JSON.parse(localStorage.getItem('app_completed_preps') || '[]'),
     customColors: JSON.parse(localStorage.getItem('app_custom_colors') || '{}'),
     isNotifEnabled: JSON.parse(localStorage.getItem('app_notif_enabled') || 'false'),
     isLightTheme: JSON.parse(localStorage.getItem('app_light_theme') || 'false'),
-    currentTz: localStorage.getItem('app_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    currentTz: localStorage.getItem('app_timezone') || 'Europe/Kyiv',
     notifiedEvents: new Set(),
     saveTimeout: null,
+    syncTimeout: null, // ← ДОДАНО
+    unsubscribeSnapshot: null, // ← ДОДАНО
     currentUser: null
 };

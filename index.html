@@ -213,6 +213,12 @@
         <option value="" disabled selected hidden>Оберіть групу</option>
       </select>
     </div>
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" id="modalPrepCompleted">
+        Виконано
+      </label>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="savePrepStudent()">Зберегти</button>
       <button class="btn" onclick="closeModal()">Скасувати</button>
@@ -249,7 +255,23 @@
     <div class="ctx-item danger" onclick="handleContextMenuAction('delete_single')"><i class="ph ph-trash"></i> Видалити</div>
   </div>
 </div>
-
+<div id="moveLessonModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <h3>Перенести урок на іншу дату</h3>
+    <div class="form-group">
+      <label for="modalMoveDate">Нова дата</label>
+      <input type="date" id="modalMoveDate">
+    </div>
+    <div class="form-group">
+      <label for="modalMoveTime">Новий час</label>
+      <input type="time" id="modalMoveTime" step="1800">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="confirmMoveLesson()">Перенести</button>
+      <button class="btn" onclick="closeMoveLessonModal()">Скасувати</button>
+    </div>
+  </div>
+</div>
 <script type="module" src="config.js"></script>
 <script type="module" src="state.js"></script>
 <script type="module" src="storage.js"></script>

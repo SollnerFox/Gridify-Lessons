@@ -4,7 +4,22 @@ import { state } from "./state.js";
 import { initAuthListeners } from "./auth.js";
 import { applySavedTheme, populateTimezoneSelect, updateTimezoneHint, updateTimezone, applySavedColors, toggleSettingsDropdown, toggleTheme, toggleNotifications, updateThemeColor, initNotifications } from "./settings.js";
 import { renderCalendar, changeWeek, toggleEditMode, applyDragSelection, updateCurrentTimeLine } from "./calendar.js";
-import { resetLessonForm, addLesson, openPrepModal, closeModal, savePrepStudent, openLessonEditModal, closeLessonEditModal, saveLessonTitle, handleContextMenuAction, clearData, exportScheduleImage } from "./modals.js";
+import {
+    resetLessonForm,
+    addLesson,
+    openPrepModal,
+    closeModal,
+    savePrepStudent,
+    openLessonEditModal,
+    closeLessonEditModal,
+    saveLessonTitle,
+    handleContextMenuAction,
+    clearData,
+    exportScheduleImage,
+    openMoveLessonModal,
+    closeMoveLessonModal,
+    confirmMoveLesson
+} from "./modals.js";
 import { SLOT_HEIGHT } from './config.js';
 
 // Встановлюємо значення з config у CSS-змінну
@@ -14,6 +29,7 @@ enableIndexedDbPersistence(db).catch((err) => {
     console.error("Офлайн-режим недоступний:", err.code);
 });
 
+// main.js - ВИПРАВЛЕНА ФУНКЦІЯ DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
     applySavedTheme();
     populateTimezoneSelect();
@@ -40,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ✅ ТВІЙ ІСНУЮЧИЙ КОД - ЗАЛИШИТИ
     document.addEventListener('click', (e) => {
         const dropdown = document.getElementById('settingsDropdown');
         const container = document.querySelector('.settings-dropdown-container');
@@ -50,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (contextMenu) contextMenu.style.display = 'none';
     });
 
+    // ✅ ДОДАТИ НОВИЙ КОД (мій) - для очищення вибору при редагуванні неробочих годин
     document.addEventListener('mouseup', () => {
         if (state.isMouseDown && state.isNonWorkingEditMode) {
             state.isMouseDown = false;
@@ -75,3 +93,6 @@ window.closeLessonEditModal = closeLessonEditModal;
 window.saveLessonTitle = saveLessonTitle;
 window.handleContextMenuAction = handleContextMenuAction;
 window.exportScheduleImage = exportScheduleImage;
+window.openMoveLessonModal = openMoveLessonModal;
+window.closeMoveLessonModal = closeMoveLessonModal;
+window.confirmMoveLesson = confirmMoveLesson;

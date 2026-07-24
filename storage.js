@@ -9,12 +9,14 @@ export function setSyncStatus(status) {
         if (status.includes('Синхронізовано')) icon = 'ph-cloud-check';
         else if (status.includes('Збереження') || status.includes('Перевірка')) icon = 'ph-arrows-clockwise';
         else if (status.includes('Помилка')) icon = 'ph-warning';
+        else if (status.includes('Офлайн')) icon = 'ph-cloud-slash';
 
         el.innerHTML = `<i class="ph ${icon}"></i> ${status}`;
     }
 }
 
 export function saveAllData() {
+    // Зберігаємо ВСІ дані в localStorage
     localStorage.setItem('app_lessons', JSON.stringify(state.lessons));
     localStorage.setItem('app_moved_lessons', JSON.stringify(state.movedLessons));
     localStorage.setItem('app_cancelled_dates', JSON.stringify(state.cancelledDates));
@@ -23,6 +25,7 @@ export function saveAllData() {
     localStorage.setItem('app_recurring_non_working', JSON.stringify(state.recurringNonWorkingSlots));
     localStorage.setItem('app_working_exceptions', JSON.stringify(state.workingExceptions || []));
     localStorage.setItem('app_prep_overrides', JSON.stringify(state.prepOverrides));
+    localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps)); // ← КРИТИЧНО
     localStorage.setItem('app_custom_colors', JSON.stringify(state.customColors));
     localStorage.setItem('app_notif_enabled', JSON.stringify(state.isNotifEnabled));
     localStorage.setItem('app_light_theme', JSON.stringify(state.isLightTheme));
@@ -32,17 +35,44 @@ export function saveAllData() {
     triggerCloudSave();
 }
 
+// storage.js - ПРОБЛЕМА: Неправильна обробка помилок при збереженні
+// ВИПРАВЛЕНА ФУНКЦІЯ triggerCloudSave
 function triggerCloudSave() {
-    if (!state.currentUser || state.currentUser.isAnonymous) return;
+    if (!state.currentUser || state.currentUser.isAnonymous) {
+        return;
+    }
+
     setSyncStatus("Збереження...");
     clearTimeout(state.saveTimeout);
+
+    // ВИПРАВЛЕННЯ: Додаємо перевірку на наявність даних
+    const hasData = state.lessons.length > 0 ||
+        state.movedLessons.length > 0 ||
+        state.singleEvents.length > 0 ||
+        Object.keys(state.prepOverrides).length > 0;
+
+    if (!hasData) {
+        setSyncStatus("Синхронізовано");
+        return;
+    }
+
     state.saveTimeout = setTimeout(async () => {
-        await forceSaveToCloud();
+        try {
+            await forceSaveToCloud();
+        } catch (error) {
+            console.error("Помилка при синхронізації:", error);
+            setSyncStatus("Помилка синхронізації");
+        }
     }, 2500);
 }
 
+// storage.js - ВИПРАВЛЕНА ФУНКЦІЯ forceSaveToCloud
 export async function forceSaveToCloud() {
-    if (!state.currentUser || state.currentUser.isAnonymous) return;
+    if (!state.currentUser || state.currentUser.isAnonymous) {
+        setSyncStatus("Локальний режим");
+        return;
+    }
+
     const docRef = doc(db, "users", state.currentUser.uid);
 
     const payload = {
@@ -54,6 +84,7 @@ export async function forceSaveToCloud() {
         recurringNonWorkingSlots: state.recurringNonWorkingSlots,
         workingExceptions: state.workingExceptions || [],
         prepOverrides: state.prepOverrides,
+        completedPreps: state.completedPreps, // ← КРИТИЧНО
         customColors: state.customColors,
         settings: {
             isNotifEnabled: state.isNotifEnabled,
@@ -69,16 +100,24 @@ export async function forceSaveToCloud() {
         meta: {
             lastUpdated: timestamp,
             totalLessons: state.lessons.length + state.movedLessons.length,
-            totalPrepSlots: Object.keys(state.prepOverrides).length + state.singleEvents.length
+            totalPrepSlots: Object.keys(state.prepOverrides).length + state.singleEvents.length,
+            totalCompletedPreps: state.completedPreps.length // ← ДОДАНО
         },
         payload: payload
     };
 
     try {
-        await setDoc(docRef, dataToSave, { merge: false });
+        await setDoc(docRef, dataToSave, { merge: true });
         setSyncStatus("Синхронізовано");
     } catch (error) {
         console.error("Помилка збереження у хмару:", error);
-        setSyncStatus("Помилка синхронізації");
+
+        if (error.code === 'permission-denied') {
+            setSyncStatus("Помилка доступу");
+        } else if (error.code === 'unavailable' || error.code === 'network-error') {
+            setSyncStatus("Офлайн - дані збережені локально");
+        } else {
+            setSyncStatus("Помилка синхронізації");
+        }
     }
 }
