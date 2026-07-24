@@ -1,4 +1,52 @@
-﻿import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+﻿const CURRENT_VERSION = '1.0.3'; // ← ЗМІНЮЙ ЦЕ при кожному оновленні
+const STORED_VERSION = localStorage.getItem('gridify_version');
+
+if (STORED_VERSION !== CURRENT_VERSION) {
+    console.log(`[HARD RESET] Версія змінилася: ${STORED_VERSION} → ${CURRENT_VERSION}`);
+
+    // 1. Видаляємо ВСІ кеші
+    if ('caches' in window) {
+        caches.keys().then((cacheNames) => {
+            cacheNames.forEach((cacheName) => {
+                caches.delete(cacheName).then(() => {
+                    console.log(`[HARD RESET] Видалено кеш: ${cacheName}`);
+                });
+            });
+        });
+    }
+
+    // 2. Видаляємо ВСІ Service Workers
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+            registrations.forEach((registration) => {
+                registration.unregister().then(() => {
+                    console.log(`[HARD RESET] Unregistered Service Worker`);
+                });
+            });
+        });
+    }
+
+    // 3. Видаляємо localStorage (ОПЦІОНАЛЬНО - якщо хочеш очистити дані користувача)
+    // localStorage.clear();
+
+    // 4. Видаляємо sessionStorage
+    sessionStorage.clear();
+
+    // 5. Зберігаємо нову версію
+    localStorage.setItem('gridify_version', CURRENT_VERSION);
+
+    // 6. ПРИМУСОВО перезавантажуємо сторінку
+    console.log(`[HARD RESET] Перезавантажуємо сторінку...`);
+    location.reload(true); // true = примусовий hard refresh
+}
+
+// ============================================
+// РЕШТА КОДУ ЙДЕ НИЖЧЕ
+// ============================================
+
+import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+
+import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 import { db } from "./config.js";
 import { state } from "./state.js";
 import { initAuthListeners } from "./auth.js";

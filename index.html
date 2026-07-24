@@ -6,7 +6,7 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.0.3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#7c3aed">
@@ -255,6 +255,7 @@
     <div class="ctx-item danger" onclick="handleContextMenuAction('delete_single')"><i class="ph ph-trash"></i> Видалити</div>
   </div>
 </div>
+
 <div id="moveLessonModal" class="modal" style="display: none;">
   <div class="modal-content">
     <h3>Перенести урок на іншу дату</h3>
@@ -272,18 +273,19 @@
     </div>
   </div>
 </div>
-<script type="module" src="config.js"></script>
-<script type="module" src="state.js"></script>
-<script type="module" src="storage.js"></script>
-<script type="module" src="auth.js"></script>
-<script type="module" src="settings.js"></script>
-<script type="module" src="modals.js"></script>
-<script type="module" src="calendar.js"></script>
-<script type="module" src="notifications.js"></script>
+
+<script type="module" src="config.js?v=1.0.3"></script>
+<script type="module" src="state.js?v=1.0.3"></script>
+<script type="module" src="storage.js?v=1.0.3"></script>
+<script type="module" src="auth.js?v=1.0.3"></script>
+<script type="module" src="settings.js?v=1.0.3"></script>
+<script type="module" src="modals.js?v=1.0.3"></script>
+<script type="module" src="calendar.js?v=1.0.3"></script>
+<script type="module" src="notifications.js?v=1.0.3"></script>
 <script type="module">
-  import { notificationManager } from './notifications.js';
+  import { notificationManager } from './notifications.js?v=1.0.3';
   notificationManager.bindToggle('#notifToggle');
 </script>
-<script type="module" src="main.js"></script>
+<script type="module" src="main.js?v=1.0.3"></script>
 </body>
 </html>
