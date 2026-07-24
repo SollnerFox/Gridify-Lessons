@@ -40,11 +40,6 @@ if (STORED_VERSION !== CURRENT_VERSION) {
     location.reload(true); // true = примусовий hard refresh
 }
 
-// ============================================
-// РЕШТА КОДУ ЙДЕ НИЖЧЕ
-// ============================================
-
-import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
 import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 import { db } from "./config.js";
