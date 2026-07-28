@@ -1,4 +1,4 @@
-﻿const CURRENT_VERSION = '1.0.3'; // ← ЗМІНЮЙ ЦЕ при кожному оновленні
+﻿const CURRENT_VERSION = window.APP_VERSION; // ← єдине джерело версії (задається в index.html)
 const STORED_VERSION = localStorage.getItem('gridify_version');
 
 if (STORED_VERSION !== CURRENT_VERSION) {
@@ -46,11 +46,14 @@ import { db } from "./config.js";
 import { state } from "./state.js";
 import { initAuthListeners } from "./auth.js";
 import { applySavedTheme, populateTimezoneSelect, updateTimezoneHint, updateTimezone, applySavedColors, toggleSettingsDropdown, toggleTheme, toggleNotifications, updateThemeColor, initNotifications } from "./settings.js";
+import { initColorPickers } from "./color-picker.js";
 import { renderCalendar, changeWeek, toggleEditMode, applyDragSelection, updateCurrentTimeLine } from "./calendar.js";
+import { setModalFunctions } from "./calendar-renderer.js";
 import {
     resetLessonForm,
     addLesson,
     openPrepModal,
+    showContextMenu,
     closeModal,
     savePrepStudent,
     openLessonEditModal,
@@ -65,6 +68,8 @@ import {
 } from "./modals.js";
 import { SLOT_HEIGHT } from './config.js';
 
+setModalFunctions({ showContextMenu, openPrepModal, openLessonEditModal });
+
 // Встановлюємо значення з config у CSS-змінну
 document.documentElement.style.setProperty('--slot-height', `${SLOT_HEIGHT}px`);
 
@@ -78,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateTimezoneSelect();
     updateTimezoneHint();
     applySavedColors();
+    initColorPickers();
     resetLessonForm();
     renderCalendar();
     initNotifications();

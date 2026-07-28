@@ -24,6 +24,8 @@ export function saveAllData() {
     localStorage.setItem('app_non_working', JSON.stringify(state.nonWorkingSlots));
     localStorage.setItem('app_recurring_non_working', JSON.stringify(state.recurringNonWorkingSlots));
     localStorage.setItem('app_working_exceptions', JSON.stringify(state.workingExceptions || []));
+    localStorage.setItem('app_full_day_blocked_slots', JSON.stringify(state.fullDayBlockedSlots || []));
+    localStorage.setItem('app_full_day_removed_exceptions', JSON.stringify(state.fullDayRemovedExceptions || []));
     localStorage.setItem('app_prep_overrides', JSON.stringify(state.prepOverrides));
     localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps)); // ← КРИТИЧНО
     localStorage.setItem('app_custom_colors', JSON.stringify(state.customColors));
@@ -83,6 +85,8 @@ export async function forceSaveToCloud() {
         nonWorkingSlots: state.nonWorkingSlots,
         recurringNonWorkingSlots: state.recurringNonWorkingSlots,
         workingExceptions: state.workingExceptions || [],
+        fullDayBlockedSlots: state.fullDayBlockedSlots || [],
+        fullDayRemovedExceptions: state.fullDayRemovedExceptions || [],
         prepOverrides: state.prepOverrides,
         completedPreps: state.completedPreps, // ← КРИТИЧНО
         customColors: state.customColors,
@@ -94,7 +98,6 @@ export async function forceSaveToCloud() {
     };
 
     const timestamp = Date.now();
-    localStorage.setItem('app_last_updated', timestamp);
 
     const dataToSave = {
         meta: {
@@ -108,6 +111,7 @@ export async function forceSaveToCloud() {
 
     try {
         await setDoc(docRef, dataToSave, { merge: true });
+        localStorage.setItem('app_last_updated', timestamp);
         setSyncStatus("Синхронізовано");
     } catch (error) {
         console.error("Помилка збереження у хмару:", error);

@@ -4,6 +4,8 @@ import { saveAllData } from "./storage.js";
 
 import { renderCalendar } from "./calendar.js";
 
+import { WORK_START_HOUR, WORK_END_HOUR } from "./config.js";
+
 export function resetLessonForm() {
 
     const titleInput = document.getElementById('title');
@@ -374,9 +376,10 @@ export function handleContextMenuAction(action) {
         saveAllData();
         renderCalendar();
     } else if (action === 'toggleFullDayNonWorking') {
-        if (!state.workingExceptions) {
-            state.workingExceptions = [];
-        }
+        if (!state.workingExceptions) state.workingExceptions = [];
+        if (!state.fullDayBlockedSlots) state.fullDayBlockedSlots = [];
+        if (!state.fullDayRemovedExceptions) state.fullDayRemovedExceptions = [];
+
         const slotTimes = [];
         for (let hour = WORK_START_HOUR; hour < WORK_END_HOUR; hour++) {
             ['00', '30'].forEach(minute => {
@@ -394,25 +397,46 @@ export function handleContextMenuAction(action) {
             return (isRecurring && !hasException) || isLocal;
         });
 
-        slotTimes.forEach(slotTimeStr => {
-            const nwKey = `${dateStr}_${slotTimeStr}`;
-            const recurringKey = `${dayOfWeek}_${slotTimeStr}`;
-            const isRecurring = state.recurringNonWorkingSlots.includes(recurringKey);
+        if (allNonWorking) {
+            slotTimes.forEach(slotTimeStr => {
+                const nwKey = `${dateStr}_${slotTimeStr}`;
 
-            if (allNonWorking) {
-                if (isRecurring) {
+                if (state.fullDayBlockedSlots.includes(nwKey)) {
+                    state.nonWorkingSlots = state.nonWorkingSlots.filter(k => k !== nwKey);
+                    state.fullDayBlockedSlots = state.fullDayBlockedSlots.filter(k => k !== nwKey);
+                }
+
+                if (state.fullDayRemovedExceptions.includes(nwKey)) {
                     if (!state.workingExceptions.includes(nwKey)) {
                         state.workingExceptions.push(nwKey);
                     }
+                    state.fullDayRemovedExceptions = state.fullDayRemovedExceptions.filter(k => k !== nwKey);
                 }
-                state.nonWorkingSlots = state.nonWorkingSlots.filter(k => k !== nwKey);
-            } else {
+            });
+        } else {
+            slotTimes.forEach(slotTimeStr => {
+                const nwKey = `${dateStr}_${slotTimeStr}`;
+                const recurringKey = `${dayOfWeek}_${slotTimeStr}`;
+                const isRecurring = state.recurringNonWorkingSlots.includes(recurringKey);
+
+                const hadException = state.workingExceptions.includes(nwKey);
+
                 state.workingExceptions = state.workingExceptions.filter(k => k !== nwKey);
+
                 if (!isRecurring && !state.nonWorkingSlots.includes(nwKey)) {
                     state.nonWorkingSlots.push(nwKey);
+                    if (!state.fullDayBlockedSlots.includes(nwKey)) {
+                        state.fullDayBlockedSlots.push(nwKey);
+                    }
                 }
-            }
-        });
+
+                if (hadException) {
+                    if (!state.fullDayRemovedExceptions.includes(nwKey)) {
+                        state.fullDayRemovedExceptions.push(nwKey);
+                    }
+                }
+            });
+        }
         saveAllData();
         renderCalendar();
     } else if (action === 'move_single_lesson') {

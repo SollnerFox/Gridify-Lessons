@@ -668,19 +668,115 @@ body.light-theme .event-block {
   align-items: center;
 }
 
-.color-control input[type="color"] {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-
 .color-preview {
   width: 100%;
   height: 28px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   cursor: pointer;
+}
+
+/* -- color picker modal -- */
+.cp-modal-content {
+  width: 300px;
+}
+
+.cp-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-sv-wrap {
+  position: relative;
+  width: 220px;
+  height: 160px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.cp-sv-canvas {
+  display: block;
+  width: 220px;
+  height: 160px;
+  border-radius: 6px;
+}
+
+.cp-sv-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  pointer-events: none;
+  transform: translate(-7px, -7px);
+}
+
+.cp-hue-wrap {
+  position: relative;
+  width: 220px;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cp-hue-canvas {
+  display: block;
+  width: 220px;
+  height: 16px;
+}
+
+.cp-hue-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  pointer-events: none;
+  transform: translate(-8px, 0);
+  top: 0;
+}
+
+.cp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.cp-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.cp-hex-prefix {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.cp-hex-input {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  background: var(--sidebar-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+}
+
+.cp-hex-input:focus {
+  border-color: var(--primary-color);
 }
 
 .context-menu {

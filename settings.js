@@ -140,23 +140,7 @@ function syncColorPreviews() {
         '--non-working-bg': '#22252e'
     };
 
-    const rootStyle = getComputedStyle(document.documentElement);
-
     // ВИПРАВЛЕННЯ: Безпечна обробка елементів
-    const colorInputs = [
-        { id: 'colorLesson', key: '--lesson-color' },
-        { id: 'colorPrep30', key: '--prep-color' },
-        { id: 'colorPrep60', key: '--prep60-color' },
-        { id: 'colorNonWorking', key: '--non-working-bg' }
-    ];
-
-    colorInputs.forEach(({ id, key }) => {
-        const input = document.getElementById(id);
-        if (input) {
-            input.value = currentThemeColors[key] || defaults[key];
-        }
-    });
-
     const colorPreviews = [
         { id: 'prevLesson', key: '--lesson-color' },
         { id: 'prevPrep30', key: '--prep-color' },
@@ -167,7 +151,7 @@ function syncColorPreviews() {
     colorPreviews.forEach(({ id, key }) => {
         const preview = document.getElementById(id);
         if (preview) {
-            preview.style.background = rootStyle.getPropertyValue(key);
+            preview.style.background = currentThemeColors[key] || defaults[key];
         }
     });
 }

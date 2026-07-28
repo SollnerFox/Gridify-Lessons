@@ -1,6 +1,6 @@
 ﻿import {
     GoogleAuthProvider, signInWithPopup, signInAnonymously,
-    onAuthStateChanged, linkWithPopup, signInWithCredential, signOut
+    onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 import { auth, db } from "./config.js";
@@ -12,29 +12,14 @@ import { applySavedTheme, applySavedColors } from "./settings.js";
 // auth.js - ВИПРАВЛЕНА ФУНКЦІЯ handleGoogleAuth (виділена окремо)
 async function handleGoogleAuth() {
     const provider = new GoogleAuthProvider();
+    state.suppressAuthModal = true;
+    state.wasAnonymous = !!(auth.currentUser && auth.currentUser.isAnonymous);
     try {
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-            try {
-                await linkWithPopup(auth.currentUser, provider);
-                alert("Акаунт успішно прив'язано до Google!");
-            } catch (linkError) {
-                if (linkError.code === 'auth/credential-already-in-use') {
-                    const credential = linkError.credential;
-                    await signOut(auth);
-                    if (credential) {
-                        await signInWithCredential(auth, credential);
-                    } else {
-                        await signInWithPopup(auth, provider);
-                    }
-                } else {
-                    throw linkError;
-                }
-            }
-        } else {
-            await signInWithPopup(auth, provider);
-        }
+        await signInWithPopup(auth, provider);
     } catch (error) {
         console.error("Помилка авторизації:", error);
+    } finally {
+        state.suppressAuthModal = false;
     }
 }
 
@@ -67,26 +52,6 @@ export function initAuthListeners() {
 
             if (user.isAnonymous) {
                 setSyncStatus("Локальний режим");
-            } else {
-                await checkSyncConflict(user.uid);
-            }
-        } else {
-            state.currentUser = null;
-            updateSettingsUI();
-            if (authModal) authModal.style.display = 'flex';
-            setSyncStatus("Офлайн");
-        }
-    });
-
-    onAuthStateChanged(auth, async (user) => {
-        const authModal = document.getElementById('authModal');
-        if (user) {
-            state.currentUser = user;
-            updateSettingsUI();
-            if (authModal) authModal.style.display = 'none';
-
-            if (user.isAnonymous) {
-                setSyncStatus("Локальний режим");
                 cleanupSnapshotListener(); // ← ДОДАНО
             } else {
                 await checkSyncConflict(user.uid);
@@ -95,8 +60,8 @@ export function initAuthListeners() {
             state.currentUser = null;
             cleanupSnapshotListener(); // ← ДОДАНО
             updateSettingsUI();
-            if (authModal) authModal.style.display = 'flex';
-            setSyncStatus("Офлайн");
+            if (!state.suppressAuthModal && authModal) authModal.style.display = 'flex';
+            if (!state.suppressAuthModal) setSyncStatus("Офлайн");
         }
     });
 }
@@ -148,19 +113,59 @@ export function updateSettingsUI() {
     }
 }
 
-function deepSortObject(obj) {
-    if (obj === null || typeof obj !== 'object') {
-        return obj;
+function buildLocalPayload() {
+    return {
+        lessons: state.lessons,
+        movedLessons: state.movedLessons,
+        cancelledDates: state.cancelledDates,
+        singleEvents: state.singleEvents,
+        nonWorkingSlots: state.nonWorkingSlots,
+        recurringNonWorkingSlots: state.recurringNonWorkingSlots,
+        workingExceptions: state.workingExceptions || [],
+        fullDayBlockedSlots: state.fullDayBlockedSlots || [],
+        fullDayRemovedExceptions: state.fullDayRemovedExceptions || [],
+        prepOverrides: state.prepOverrides,
+        completedPreps: state.completedPreps,
+        customColors: state.customColors,
+        settings: {
+            isNotifEnabled: state.isNotifEnabled,
+            isLightTheme: state.isLightTheme,
+            currentTz: state.currentTz
+        }
+    };
+}
+
+function mergePayloads(cloud, local) {
+    const merged = {};
+
+    const arrayFields = [
+        'lessons', 'movedLessons', 'cancelledDates', 'singleEvents',
+        'nonWorkingSlots', 'recurringNonWorkingSlots', 'workingExceptions',
+        'fullDayBlockedSlots', 'fullDayRemovedExceptions', 'completedPreps'
+    ];
+    for (const field of arrayFields) {
+        const cArr = cloud[field] || [];
+        const lArr = local[field] || [];
+        const seen = new Set();
+        const result = [];
+        for (const item of [...cArr, ...lArr]) {
+            const key = JSON.stringify(item);
+            if (!seen.has(key)) {
+                seen.add(key);
+                result.push(item);
+            }
+        }
+        merged[field] = result;
     }
-    if (Array.isArray(obj)) {
-        return obj.map(deepSortObject);
-    }
-    const sortedKeys = Object.keys(obj).sort();
-    const result = {};
-    for (const key of sortedKeys) {
-        result[key] = deepSortObject(obj[key]);
-    }
-    return result;
+
+    merged.prepOverrides = { ...(cloud.prepOverrides || {}), ...(local.prepOverrides || {}) };
+    merged.customColors = {
+        light: { ...((cloud.customColors || {}).light || {}), ...((local.customColors || {}).light || {}) },
+        dark: { ...((cloud.customColors || {}).dark || {}), ...((local.customColors || {}).dark || {}) }
+    };
+    merged.settings = { ...(cloud.settings || {}), ...(local.settings || {}) };
+
+    return merged;
 }
 
 async function checkSyncConflict(uid) {
@@ -168,7 +173,14 @@ async function checkSyncConflict(uid) {
     try {
         const docRef = doc(db, "users", uid);
         const docSnap = await getDoc(docRef);
-        const hasLocalData = state.lessons.length > 0 || state.movedLessons.length > 0;
+        const hasLocalData = state.lessons.length > 0 ||
+            state.movedLessons.length > 0 ||
+            state.singleEvents.length > 0 ||
+            state.nonWorkingSlots.length > 0 ||
+            state.recurringNonWorkingSlots.length > 0 ||
+            state.workingExceptions.length > 0 ||
+            Object.keys(state.prepOverrides).length > 0 ||
+            state.completedPreps.length > 0;
 
         if (!docSnap.exists()) {
             if (hasLocalData) await forceSaveToCloud();
@@ -177,84 +189,29 @@ async function checkSyncConflict(uid) {
         }
 
         const cloudData = docSnap.data();
-        const hasCloudData = cloudData.payload && ((cloudData.payload.lessons && cloudData.payload.lessons.length > 0) || (cloudData.payload.movedLessons && cloudData.payload.movedLessons.length > 0));
+        const cloudTs = cloudData.meta?.lastUpdated || 0;
+        const localTs = Number(localStorage.getItem('app_last_updated')) || 0;
 
-        if (!hasCloudData) {
-            if (hasLocalData) await forceSaveToCloud();
-            initSnapshotListener(uid);
-            return;
+        if (state.wasAnonymous) {
+            state.wasAnonymous = false;
+            const localPayload = buildLocalPayload();
+            const merged = mergePayloads(cloudData.payload, localPayload);
+            applyCloudData(merged, Date.now());
+            await forceSaveToCloud();
+        } else if (cloudTs > localTs) {
+            applyCloudData(cloudData.payload, cloudTs);
+        } else if (hasLocalData) {
+            await forceSaveToCloud();
         }
 
-        const localPayload = {
-            lessons: state.lessons,
-            movedLessons: state.movedLessons,
-            cancelledDates: state.cancelledDates,
-            singleEvents: state.singleEvents,
-            nonWorkingSlots: state.nonWorkingSlots,
-            recurringNonWorkingSlots: state.recurringNonWorkingSlots,
-            workingExceptions: state.workingExceptions || [],
-            prepOverrides: state.prepOverrides,
-            completedPreps: state.completedPreps, // ← ДОДАНО
-            customColors: state.customColors,
-            settings: {
-                isNotifEnabled: state.isNotifEnabled,
-                isLightTheme: state.isLightTheme,
-                currentTz: state.currentTz
-            }
-        };
-
-        const sortedLocal = JSON.stringify(deepSortObject(localPayload));
-        const sortedCloud = JSON.stringify(deepSortObject(cloudData.payload));
-
-        if (sortedLocal === sortedCloud) {
-            initSnapshotListener(uid);
-            setSyncStatus("Синхронізовано");
-            return;
-        }
-
-        if (hasLocalData && hasCloudData) {
-            showConflictModal(cloudData);
-        } else if (!hasLocalData && hasCloudData) {
-            applyCloudData(cloudData.payload);
-            initSnapshotListener(uid);
-        } else {
-            initSnapshotListener(uid);
-        }
+        initSnapshotListener(uid);
     } catch (error) {
         console.error("Помилка синхронізації з Firestore:", error);
         setSyncStatus("Помилка зв'язку / Офлайн");
     }
 }
 
-// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ showConflictModal
-function showConflictModal(cloudData) {
-    const conflictModal = document.getElementById('conflictModal');
-    if (conflictModal) conflictModal.style.display = 'flex';
-
-    const cloudDate = new Date(cloudData.meta.lastUpdated).toLocaleString('uk-UA');
-    document.getElementById('cloudMetaInfo').innerText = `Оновлено: ${cloudDate}\nЗанять: ${cloudData.meta.totalLessons}\nВиконано: ${cloudData.meta.totalCompletedPreps || 0}`;
-
-    const localTimestamp = localStorage.getItem('app_last_updated') ? Number(localStorage.getItem('app_last_updated')) : Date.now();
-    const localDate = new Date(localTimestamp).toLocaleString('uk-UA');
-    const totalLocalLessons = state.lessons.length + state.movedLessons.length;
-    const totalLocalCompletedPreps = state.completedPreps.length;
-    document.getElementById('localMetaInfo').innerText = `Оновлено: ${localDate}\nЗанять: ${totalLocalLessons}\nВиконано: ${totalLocalCompletedPreps}`;
-
-    document.getElementById('btnUseCloud').onclick = () => {
-        applyCloudData(cloudData.payload);
-        if (conflictModal) conflictModal.style.display = 'none';
-        initSnapshotListener(state.currentUser.uid);
-    };
-
-    document.getElementById('btnUseLocal').onclick = async () => {
-        await forceSaveToCloud();
-        if (conflictModal) conflictModal.style.display = 'none';
-        initSnapshotListener(state.currentUser.uid);
-    };
-}
-
-// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ applyCloudData
-function applyCloudData(payload) {
+function applyCloudData(payload, timestamp) {
     state.lessons = payload.lessons || [];
     state.movedLessons = payload.movedLessons || [];
     state.cancelledDates = payload.cancelledDates || [];
@@ -262,6 +219,8 @@ function applyCloudData(payload) {
     state.nonWorkingSlots = payload.nonWorkingSlots || [];
     state.recurringNonWorkingSlots = payload.recurringNonWorkingSlots || [];
     state.workingExceptions = payload.workingExceptions || [];
+    state.fullDayBlockedSlots = payload.fullDayBlockedSlots || [];
+    state.fullDayRemovedExceptions = payload.fullDayRemovedExceptions || [];
     state.prepOverrides = payload.prepOverrides || {};
     state.completedPreps = payload.completedPreps || []; // ← ДОДАНО
     state.customColors = payload.customColors || {};
@@ -279,6 +238,8 @@ function applyCloudData(payload) {
     localStorage.setItem('app_non_working', JSON.stringify(state.nonWorkingSlots));
     localStorage.setItem('app_recurring_non_working', JSON.stringify(state.recurringNonWorkingSlots));
     localStorage.setItem('app_working_exceptions', JSON.stringify(state.workingExceptions));
+    localStorage.setItem('app_full_day_blocked_slots', JSON.stringify(state.fullDayBlockedSlots));
+    localStorage.setItem('app_full_day_removed_exceptions', JSON.stringify(state.fullDayRemovedExceptions));
     localStorage.setItem('app_prep_overrides', JSON.stringify(state.prepOverrides));
     localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps)); // ← ДОДАНО
     localStorage.setItem('app_custom_colors', JSON.stringify(state.customColors));
@@ -286,12 +247,15 @@ function applyCloudData(payload) {
     localStorage.setItem('app_light_theme', JSON.stringify(state.isLightTheme));
     localStorage.setItem('app_timezone', state.currentTz);
 
+    if (timestamp) {
+        localStorage.setItem('app_last_updated', timestamp);
+    }
+
     applySavedTheme();
     applySavedColors();
     renderCalendar();
 }
 
-// auth.js - ВИПРАВЛЕНА ФУНКЦІЯ initSnapshotListener
 function initSnapshotListener(uid) {
     if (state.unsubscribeSnapshot) state.unsubscribeSnapshot();
     const docRef = doc(db, "users", uid);
@@ -299,45 +263,13 @@ function initSnapshotListener(uid) {
         if (docSnap.exists()) {
             const source = docSnap.metadata.hasPendingWrites ? "Local" : "Server";
             if (source === "Server") {
-                const cloudPayload = docSnap.data().payload;
+                const fullData = docSnap.data();
+                const cloudPayload = fullData.payload;
+                const cloudTs = fullData.meta?.lastUpdated || 0;
+                const localTs = Number(localStorage.getItem('app_last_updated')) || 0;
 
-                // Перевіряємо, чи змінилися дані (крім completedPreps)
-                const localDataChanged = JSON.stringify({
-                    lessons: state.lessons,
-                    movedLessons: state.movedLessons,
-                    cancelledDates: state.cancelledDates,
-                    singleEvents: state.singleEvents,
-                    nonWorkingSlots: state.nonWorkingSlots,
-                    recurringNonWorkingSlots: state.recurringNonWorkingSlots,
-                    workingExceptions: state.workingExceptions,
-                    prepOverrides: state.prepOverrides,
-                    customColors: state.customColors,
-                    settings: {
-                        isNotifEnabled: state.isNotifEnabled,
-                        isLightTheme: state.isLightTheme,
-                        currentTz: state.currentTz
-                    }
-                }) !== JSON.stringify({
-                    lessons: cloudPayload.lessons,
-                    movedLessons: cloudPayload.movedLessons,
-                    cancelledDates: cloudPayload.cancelledDates,
-                    singleEvents: cloudPayload.singleEvents,
-                    nonWorkingSlots: cloudPayload.nonWorkingSlots,
-                    recurringNonWorkingSlots: cloudPayload.recurringNonWorkingSlots,
-                    workingExceptions: cloudPayload.workingExceptions,
-                    prepOverrides: cloudPayload.prepOverrides,
-                    customColors: cloudPayload.customColors,
-                    settings: cloudPayload.settings
-                });
-
-                // Якщо основні дані не змінилися, просто оновлюємо completedPreps
-                if (!localDataChanged) {
-                    state.completedPreps = cloudPayload.completedPreps || [];
-                    localStorage.setItem('app_completed_preps', JSON.stringify(state.completedPreps));
-                    renderCalendar();
-                } else {
-                    // Якщо основні дані змінилися, завантажуємо все
-                    applyCloudData(cloudPayload);
+                if (cloudTs > localTs) {
+                    applyCloudData(cloudPayload, cloudTs);
                 }
 
                 setSyncStatus("Синхронізовано");

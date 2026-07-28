@@ -1,5 +1,5 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
-const CACHE_VERSION = 'v1.0.3';
+const CACHE_VERSION = 'v1.0.14'; // має відповідати window.APP_VERSION в index.html
 const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
 const BASE_PATH = '/Gridify-Lessons';
 

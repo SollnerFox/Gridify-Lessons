@@ -27,6 +27,8 @@ export const state = {
     nonWorkingSlots: JSON.parse(localStorage.getItem('app_non_working') || '[]'),
     recurringNonWorkingSlots: JSON.parse(localStorage.getItem('app_recurring_non_working') || '[]'),
     workingExceptions: JSON.parse(localStorage.getItem('app_working_exceptions') || '[]'),
+    fullDayBlockedSlots: JSON.parse(localStorage.getItem('app_full_day_blocked_slots') || '[]'),
+    fullDayRemovedExceptions: JSON.parse(localStorage.getItem('app_full_day_removed_exceptions') || '[]'),
     prepOverrides: JSON.parse(localStorage.getItem('app_prep_overrides') || '{}'),
     completedPreps: JSON.parse(localStorage.getItem('app_completed_preps') || '[]'),
     customColors: JSON.parse(localStorage.getItem('app_custom_colors') || '{}'),
@@ -37,5 +39,7 @@ export const state = {
     saveTimeout: null,
     syncTimeout: null, // ← ДОДАНО
     unsubscribeSnapshot: null, // ← ДОДАНО
-    currentUser: null
+    currentUser: null,
+    suppressAuthModal: false,
+    wasAnonymous: false
 };
