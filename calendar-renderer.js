@@ -41,6 +41,8 @@ function createSlotElement(hour, minute, currentDayStr, dayOfWeek) {
 
     const el = document.createElement('div');
     el.className = `slot ${minute === '00' ? 'slot-hour' : 'slot-half'}`;
+    el.dataset.date = currentDayStr;
+    el.dataset.time = slotTimeStr;
     if (isNonWorking) el.classList.add('non-working');
 
     el.addEventListener('mouseenter', () => {
@@ -107,10 +109,211 @@ function createLessonBlock(lesson, currentDayStr, dayOfWeek) {
         <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
     `;
 
-    el.addEventListener('click', () => openLessonEditModal(lesson.id));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'lesson', id: lesson.id, dateStr: currentDayStr }));
 
+    el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        initDrag(e, lesson, currentDayStr, () => openLessonEditModal(lesson.id), { sourceType: 'lesson' });
+    });
+
     return el;
+}
+
+// --- Drag-and-drop ---
+
+let dropHandler = null;
+
+export function setDropHandler(cb) {
+    dropHandler = cb;
+}
+
+function initDrag(e, lesson, dateStr, onClick, extra) {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let isDragging = false;
+    const calendar = document.getElementById('calendarView');
+
+    const onMove = (ev) => {
+        if (!isDragging && (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5)) {
+            isDragging = true;
+            if (calendar) calendar.classList.add('drag-active');
+            createDragGhost(lesson.title, ev);
+        }
+        if (isDragging) {
+            updateDragGhost(ev);
+            highlightDropTarget(ev);
+        }
+    };
+
+    const onUp = (ev) => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        cleanupDrag();
+        if (calendar) calendar.classList.remove('drag-active');
+
+        if (isDragging) {
+            const target = getDropTarget(ev);
+            if (target && dropHandler) {
+                dropHandler({
+                    lessonId: lesson.id,
+                    lessonTitle: lesson.title,
+                    lessonTime: lesson.startTime,
+                    sourceDateStr: dateStr,
+                    targetDateStr: target.dateStr,
+                    targetTimeStr: target.timeStr,
+                    ...extra
+                });
+            }
+        } else {
+            onClick();
+        }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+}
+
+let dragGhost = null;
+
+function createDragGhost(text, e) {
+    dragGhost = document.createElement('div');
+    dragGhost.className = 'drag-ghost';
+    dragGhost.textContent = text;
+    document.body.appendChild(dragGhost);
+    positionDragGhost(e);
+}
+
+function positionDragGhost(e) {
+    if (!dragGhost) return;
+    dragGhost.style.left = (e.clientX + 12) + 'px';
+    dragGhost.style.top = (e.clientY + 12) + 'px';
+}
+
+function updateDragGhost(e) {
+    positionDragGhost(e);
+}
+
+function highlightDropTarget(e) {
+    document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
+    const slot = getSlotFromPoint(e.clientX, e.clientY);
+    if (slot) slot.classList.add('drop-target');
+}
+
+function getSlotFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest('.slot');
+}
+
+function getDropTarget(e) {
+    const slot = getSlotFromPoint(e.clientX, e.clientY);
+    if (!slot) return null;
+    const dateStr = slot.dataset.date;
+    const timeStr = slot.dataset.time;
+    if (!dateStr || !timeStr) return null;
+    return { dateStr, timeStr };
+}
+
+function cleanupDrag() {
+    if (dragGhost) {
+        dragGhost.remove();
+        dragGhost = null;
+    }
+    document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
+}
+
+export function checkConflicts(lessonId, targetDateStr, targetTimeStr, excludeEventId) {
+    const conflicts = [];
+    const targetDayOfWeek = new Date(targetDateStr + 'T12:00:00').getDay();
+    const [targetH, targetM] = targetTimeStr.split(':').map(Number);
+    const targetStart = targetH * 60 + targetM;
+    const targetEnd = targetStart + 90;
+
+    const movingLesson = state.lessons.find(l => l.id === lessonId);
+    const hasMovingPrep = movingLesson && movingLesson.hasPrep;
+    const prepStart = targetStart - 30;
+    const prepEnd = targetStart;
+
+    const overlap = (s1, e1, s2, e2) => s1 < e2 && e1 > s2;
+
+    state.lessons.forEach(l => {
+        if (l.id === lessonId) return;
+        if (l.dayOfWeek !== targetDayOfWeek) return;
+        if (state.cancelledDates.includes(`${l.id}_${targetDateStr}`)) return;
+        const [lh, lm] = l.startTime.split(':').map(Number);
+        const lStart = lh * 60 + lm;
+        const lEnd = lStart + 90;
+
+        if (overlap(targetStart, targetEnd, lStart, lEnd)) {
+            conflicts.push({ type: 'lesson', msg: `"${l.title}" о ${l.startTime}` });
+        }
+        if (l.hasPrep && overlap(targetStart, targetEnd, lStart - 30, lStart)) {
+            conflicts.push({ type: 'prep', msg: `відпрацювання "${l.title}" перед ${l.startTime}` });
+        }
+        if (hasMovingPrep && overlap(prepStart, prepEnd, lStart, lEnd)) {
+            conflicts.push({ type: 'prep', msg: `урок "${l.title}" о ${l.startTime} — накладається на відпрацювання` });
+        }
+        if (hasMovingPrep && l.hasPrep && overlap(prepStart, prepEnd, lStart - 30, lStart)) {
+            conflicts.push({ type: 'prep', msg: `відпрацювання "${l.title}" перед ${l.startTime}` });
+        }
+        if (hasMovingPrep && overlap(targetStart, targetEnd, lStart - 30, lStart)) {
+            // already covered above, but keep for clarity
+        }
+    });
+
+    const addTimeConflict = (label) => {
+        conflicts.push({ type: 'conflict', msg: label });
+    };
+
+    state.movedLessons.forEach(ml => {
+        if (ml.dateStr !== targetDateStr) return;
+        const [mh, mm] = ml.timeStr.split(':').map(Number);
+        const mStart = mh * 60 + mm;
+        const mEnd = mStart + 90;
+        if (overlap(targetStart, targetEnd, mStart, mEnd)) {
+            addTimeConflict(`"${ml.title}" о ${ml.timeStr} (перенесений)`);
+        }
+        if (hasMovingPrep && overlap(prepStart, prepEnd, mStart, mEnd)) {
+            addTimeConflict(`"${ml.title}" о ${ml.timeStr} (перенесений) — накладається на відпрацювання`);
+        }
+    });
+
+    const isNonWorking = (dateStr, timeStr, dayOfWeek) => {
+        const nw = `${dateStr}_${timeStr}`;
+        const rec = `${dayOfWeek}_${timeStr}`;
+        const recBlocked = state.recurringNonWorkingSlots.includes(rec);
+        const exc = state.workingExceptions && state.workingExceptions.includes(nw);
+        return state.nonWorkingSlots.includes(nw) || (recBlocked && !exc);
+    };
+
+    const timeStrLabel = `${String(targetH).padStart(2, '0')}:${String(targetM).padStart(2, '0')}`;
+    if (isNonWorking(targetDateStr, timeStrLabel, targetDayOfWeek)) {
+        addTimeConflict('неробочий час');
+    }
+    if (hasMovingPrep) {
+        const prepH = Math.floor(((prepStart % 1440) + 1440) % 1440 / 60);
+        const prepM = ((prepStart % 1440) + 1440) % 1440 % 60;
+        const prepTimeStr = `${String(prepH).padStart(2, '0')}:${String(prepM).padStart(2, '0')}`;
+        if (isNonWorking(targetDateStr, prepTimeStr, targetDayOfWeek)) {
+            addTimeConflict('неробочий час на відпрацюванні');
+        }
+    }
+
+    state.singleEvents.forEach(ev => {
+        if (ev.id === excludeEventId) return;
+        if (ev.dateStr !== targetDateStr) return;
+        const [eh, em] = ev.timeStr.split(':').map(Number);
+        const eStart = eh * 60 + em;
+        const eEnd = eStart + ev.duration;
+        if (overlap(targetStart, targetEnd, eStart, eEnd)) {
+            addTimeConflict(`відпрацювання (1 год) о ${ev.timeStr}`);
+        }
+        if (hasMovingPrep && overlap(prepStart, prepEnd, eStart, eEnd)) {
+            addTimeConflict(`відпрацювання (1 год) о ${ev.timeStr} — накладається на відпрацювання`);
+        }
+    });
+
+    return conflicts;
 }
 
 function createMovedLessonBlock(ml) {
@@ -123,10 +326,17 @@ function createMovedLessonBlock(ml) {
     el.style.height = `${heightPx - 2}px`;
     el.innerText = ml.title;
 
-    el.addEventListener('click', () => openLessonEditModal(ml.lessonId));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, {
         type: 'moved_lesson', id: ml.id, lessonId: ml.lessonId, dateStr: ml.dateStr
     }));
+
+    el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        initDrag(e, { id: ml.lessonId, title: ml.title, startTime: ml.timeStr }, ml.dateStr,
+            () => openLessonEditModal(ml.lessonId),
+            { sourceType: 'moved_lesson', movedLessonId: ml.id }
+        );
+    });
 
     return el;
 }
@@ -148,6 +358,14 @@ function createSingleEventBlock(event) {
 
     el.addEventListener('click', () => openPrepModal(event.id, event.studentName || '', event.groupName || '', false));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'single_event', id: event.id }));
+
+    el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        initDrag(e, { id: event.id, title: `Відпр: ${sText}`, startTime: event.timeStr, duration: event.duration }, event.dateStr,
+            () => openPrepModal(event.id, event.studentName || '', event.groupName || '', false),
+            { sourceType: 'single_event' }
+        );
+    });
 
     return el;
 }

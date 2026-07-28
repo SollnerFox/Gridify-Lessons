@@ -11,18 +11,18 @@ let isHueDragging = false;
 let currentHsv = { h: 0, s: 0, v: 1 };
 let currentHex = '#000000';
 
-function hexToRgb(hex) {
+export function hexToRgb(hex) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return { r, g, b };
 }
 
-function rgbToHex(r, g, b) {
+export function rgbToHex(r, g, b) {
     return '#' + [r, g, b].map(c => Math.round(c).toString(16).padStart(2, '0')).join('');
 }
 
-function rgbToHsv(r, g, b) {
+export function rgbToHsv(r, g, b) {
     r /= 255; g /= 255; b /= 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const d = max - min;
@@ -37,7 +37,7 @@ function rgbToHsv(r, g, b) {
     return { h, s, v };
 }
 
-function hsvToRgb(h, s, v) {
+export function hsvToRgb(h, s, v) {
     const i = Math.floor(h * 6);
     const f = h * 6 - i;
     const p = v * (1 - s);

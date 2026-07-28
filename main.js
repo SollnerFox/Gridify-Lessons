@@ -16,7 +16,7 @@ import { initAuthListeners } from "./auth.js";
 import { applySavedTheme, populateTimezoneSelect, updateTimezoneHint, updateTimezone, applySavedColors, toggleSettingsDropdown, toggleTheme, toggleNotifications, updateThemeColor, initNotifications } from "./settings.js";
 import { initColorPickers } from "./color-picker.js";
 import { renderCalendar, changeWeek, toggleEditMode, applyDragSelection, updateCurrentTimeLine } from "./calendar.js";
-import { setModalFunctions } from "./calendar-renderer.js";
+import { setModalFunctions, setDropHandler } from "./calendar-renderer.js";
 import {
     resetLessonForm,
     addLesson,
@@ -32,7 +32,10 @@ import {
     exportScheduleImage,
     openMoveLessonModal,
     closeMoveLessonModal,
-    confirmMoveLesson
+    confirmMoveLesson,
+    handleLessonDrop,
+    confirmConflictOverride,
+    closeConflictModal
 } from "./modals.js";
 import { SLOT_HEIGHT, isDev } from './config.js';
 
@@ -112,6 +115,31 @@ document.addEventListener('DOMContentLoaded', () => {
             applyDragSelection();
         }
     });
+
+    setDropHandler(handleLessonDrop);
+
+    // Гарячі клавіші
+    document.addEventListener('keydown', (e) => {
+        if (e.target.matches('input, select, textarea, [contenteditable]')) return;
+        switch (e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                changeWeek(-1);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                changeWeek(1);
+                break;
+        }
+        switch (e.code) {
+            case 'KeyT':
+                changeWeek(0);
+                break;
+            case 'KeyE':
+                toggleEditMode();
+                break;
+        }
+    });
 });
 
 window.changeWeek = changeWeek;
@@ -134,3 +162,5 @@ window.exportScheduleImage = exportScheduleImage;
 window.openMoveLessonModal = openMoveLessonModal;
 window.closeMoveLessonModal = closeMoveLessonModal;
 window.confirmMoveLesson = confirmMoveLesson;
+window.confirmConflictOverride = confirmConflictOverride;
+window.closeConflictModal = closeConflictModal;

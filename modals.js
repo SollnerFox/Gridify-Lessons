@@ -3,102 +3,103 @@
 import { saveAllData } from "./storage.js";
 
 import { renderCalendar } from "./calendar.js";
+import { checkConflicts } from "./calendar-renderer.js";
 
 import { WORK_START_HOUR, WORK_END_HOUR } from "./config.js";
 
 export function resetLessonForm() {
 
-    const titleInput = document.getElementById('title');
+    const titleInput = document.getElementById('title');
 
-    const daySelect = document.getElementById('dayOfWeek');
+    const daySelect = document.getElementById('dayOfWeek');
 
-    const startTimeInput = document.getElementById('startTime');
+    const startTimeInput = document.getElementById('startTime');
 
-    const hasPrepInput = document.getElementById('hasPrep');
+    const hasPrepInput = document.getElementById('hasPrep');
 
-    const startDateInput = document.getElementById('startDate');
+    const startDateInput = document.getElementById('startDate');
 
-    const endDateInput = document.getElementById('endDate');
+    const endDateInput = document.getElementById('endDate');
 
-    if (titleInput) titleInput.value = '';
+    if (titleInput) titleInput.value = '';
 
-    if (daySelect) daySelect.value = '';
+    if (daySelect) daySelect.value = '';
 
-    if (startTimeInput) startTimeInput.value = '10:00';
+    if (startTimeInput) startTimeInput.value = '10:00';
 
-    if (hasPrepInput) hasPrepInput.checked = false;
+    if (hasPrepInput) hasPrepInput.checked = false;
 
-    const today = new Date();
+    const today = new Date();
 
-    const yyyy = today.getFullYear();
+    const yyyy = today.getFullYear();
 
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
 
-    const dd = String(today.getDate()).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
 
-    if (startDateInput) startDateInput.value = `${yyyy}-${mm}-${dd}`;
+    if (startDateInput) startDateInput.value = `${yyyy}-${mm}-${dd}`;
 
-    const nextYear = new Date();
+    const nextYear = new Date();
 
-    nextYear.setFullYear(today.getFullYear() + 1);
+    nextYear.setFullYear(today.getFullYear() + 1);
 
-    const nyyyy = nextYear.getFullYear();
+    const nyyyy = nextYear.getFullYear();
 
-    const nmm = String(nextYear.getMonth() + 1).padStart(2, '0');
+    const nmm = String(nextYear.getMonth() + 1).padStart(2, '0');
 
-    const ndd = String(nextYear.getDate()).padStart(2, '0');
+    const ndd = String(nextYear.getDate()).padStart(2, '0');
 
-    if (endDateInput) endDateInput.value = `${nyyyy}-${nmm}-${ndd}`;
+    if (endDateInput) endDateInput.value = `${nyyyy}-${nmm}-${ndd}`;
 
 }
 
 export function addLesson() {
 
-    const title = document.getElementById('title').value.trim();
+    const title = document.getElementById('title').value.trim();
 
-    const dayOfWeek = parseInt(document.getElementById('dayOfWeek').value);
+    const dayOfWeek = parseInt(document.getElementById('dayOfWeek').value);
 
-    const startTime = document.getElementById('startTime').value;
+    const startTime = document.getElementById('startTime').value;
 
-    const hasPrep = document.getElementById('hasPrep').checked;
+    const hasPrep = document.getElementById('hasPrep').checked;
 
-    const startDate = document.getElementById('startDate').value;
+    const startDate = document.getElementById('startDate').value;
 
-    const endDate = document.getElementById('endDate').value;
+    const endDate = document.getElementById('endDate').value;
 
-    if (!title || isNaN(dayOfWeek) || !startTime || !startDate || !endDate) {
+    if (!title || isNaN(dayOfWeek) || !startTime || !startDate || !endDate) {
 
-        alert('Будь ласка, заповніть усі поля форми створення групи.');
+        alert('Будь ласка, заповніть усі поля форми створення групи.');
 
-        return;
+        return;
 
-    }
+    }
 
-    const newLesson = {
+    const newLesson = {
 
-        id: 'lesson_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+        id: 'lesson_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
 
-        title,
+        title,
 
-        dayOfWeek,
+        dayOfWeek,
 
-        startTime,
+        startTime,
 
-        hasPrep,
+        hasPrep,
 
-        startDate,
+        startDate,
 
-        endDate
+        endDate
 
-    };
+    };
 
-    state.lessons.push(newLesson);
+    state.lessons.push(newLesson);
 
-    saveAllData();
+    saveAllData();
 
-    renderCalendar();
+    renderCalendar();
 
-    resetLessonForm();
+    resetLessonForm();
 
 }
 
@@ -157,11 +158,11 @@ export function openPrepModal(key, currentStudentName = '', currentGroupName = '
 
 export function closeModal() {
 
-    const modal = document.getElementById('prepModal');
+    const modal = document.getElementById('prepModal');
 
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.style.display = 'none';
 
-    activePrepKey = null;
+    activePrepKey = null;
 
 }
 
@@ -211,31 +212,31 @@ let activeLessonEditId = null;
 
 export function openLessonEditModal(lessonId) {
 
-    activeLessonEditId = lessonId;
+    activeLessonEditId = lessonId;
 
-    const lesson = state.lessons.find(l => l.id === lessonId);
+    const lesson = state.lessons.find(l => l.id === lessonId);
 
-    const titleInput = document.getElementById('modalLessonTitle');
+    const titleInput = document.getElementById('modalLessonTitle');
 
-    if (lesson && titleInput) {
+    if (lesson && titleInput) {
 
-        titleInput.value = lesson.title;
+        titleInput.value = lesson.title;
 
-    }
+    }
 
-    const modal = document.getElementById('lessonEditModal');
+    const modal = document.getElementById('lessonEditModal');
 
-    if (modal) modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
 
 }
 
 export function closeLessonEditModal() {
 
-    const modal = document.getElementById('lessonEditModal');
+    const modal = document.getElementById('lessonEditModal');
 
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.style.display = 'none';
 
-    activeLessonEditId = null;
+    activeLessonEditId = null;
 
 }
 
@@ -290,69 +291,69 @@ let contextMenuData = null;
 
 export function showContextMenu(e, data) {
 
-    e.preventDefault();
+    e.preventDefault();
 
-    contextMenuData = data;
+    contextMenuData = data;
 
-    const menu = document.getElementById('contextMenu');
+    const menu = document.getElementById('contextMenu');
 
-    if (!menu) return;
+    if (!menu) return;
 
-    const slotActions = document.getElementById('ctx-slot-actions');
+    const slotActions = document.getElementById('ctx-slot-actions');
 
-    const lessonActions = document.getElementById('ctx-lesson-actions');
+    const lessonActions = document.getElementById('ctx-lesson-actions');
 
-    const otherActions = document.getElementById('ctx-other-actions');
+    const otherActions = document.getElementById('ctx-other-actions');
 
-    if (slotActions) slotActions.style.display = 'none';
+    if (slotActions) slotActions.style.display = 'none';
 
-    if (lessonActions) lessonActions.style.display = 'none';
+    if (lessonActions) lessonActions.style.display = 'none';
 
-    if (otherActions) otherActions.style.display = 'none';
+    if (otherActions) otherActions.style.display = 'none';
 
-    if (data.type === 'slot') {
+    if (data.type === 'slot') {
 
-        if (slotActions) slotActions.style.display = 'block';
+        if (slotActions) slotActions.style.display = 'block';
 
-    } else if (data.type === 'lesson' || data.type === 'moved_lesson') {
+    } else if (data.type === 'lesson' || data.type === 'moved_lesson') {
 
-        if (lessonActions) lessonActions.style.display = 'block';
+        if (lessonActions) lessonActions.style.display = 'block';
 
-    } else {
+    } else {
 
-        if (otherActions) otherActions.style.display = 'block';
+        if (otherActions) otherActions.style.display = 'block';
 
-    }
+    }
 
-    menu.style.display = 'block';
+    menu.style.display = 'block';
 
-    const menuWidth = menu.offsetWidth;
+    const menuWidth = menu.offsetWidth;
 
-    const menuHeight = menu.offsetHeight;
+    const menuHeight = menu.offsetHeight;
 
-    let left = e.pageX;
+    let left = e.pageX;
 
-    let top = e.pageY;
+    let top = e.pageY;
 
-    if (e.clientX + menuWidth > window.innerWidth) {
+    if (e.clientX + menuWidth > window.innerWidth) {
 
-        left = e.pageX - menuWidth;
+        left = e.pageX - menuWidth;
 
-    }
+    }
 
-    if (e.clientY + menuHeight > window.innerHeight) {
+    if (e.clientY + menuHeight > window.innerHeight) {
 
-        top = e.pageY - menuHeight;
+        top = e.pageY - menuHeight;
 
-    }
+    }
 
-    left = Math.max(window.scrollX, left);
+    left = Math.max(window.scrollX, left);
 
-    top = Math.max(window.scrollY, top);
+    top = Math.max(window.scrollY, top);
 
-    menu.style.left = `${left}px`;
+    menu.style.left = `${left}px`;
 
-    menu.style.top = `${top}px`;
+    menu.style.top = `${top}px`;
 
 }
 
@@ -527,26 +528,22 @@ export function handleContextMenuAction(action) {
         saveAllData();
         renderCalendar();
     } else if (action === 'delete_series') {
+        let targetId = null;
         if (type === 'lesson') {
-            // Видаляємо основний урок
-            state.lessons = state.lessons.filter(l => l.id !== id);
-
-            // Видаляємо всі перенесені уроки цього курсу
-            state.movedLessons = state.movedLessons.filter(ml => ml.lessonId !== id);
-
-            // Видаляємо скасовані дати
-            state.cancelledDates = state.cancelledDates.filter(k => !k.startsWith(`${id}_`));
-
-            // Видаляємо всі prepOverrides для цього урока
+            targetId = id;
+        } else if (type === 'moved_lesson') {
+            targetId = lessonId;
+        }
+        if (targetId) {
+            state.lessons = state.lessons.filter(l => l.id !== targetId);
+            state.movedLessons = state.movedLessons.filter(ml => ml.lessonId !== targetId);
+            state.cancelledDates = state.cancelledDates.filter(k => !k.startsWith(`${targetId}_`));
             Object.keys(state.prepOverrides).forEach(k => {
-                if (k.startsWith(`${id}_`)) {
+                if (k.startsWith(`${targetId}_`)) {
                     delete state.prepOverrides[k];
                 }
             });
-
-            // ДОДАНО: Видаляємо completedPreps для цього урока
-            state.completedPreps = state.completedPreps.filter(k => !k.startsWith(`${id}_`));
-
+            state.completedPreps = state.completedPreps.filter(k => !k.startsWith(`${targetId}_`));
             saveAllData();
             renderCalendar();
         }
@@ -556,13 +553,13 @@ export function handleContextMenuAction(action) {
 
 export function clearData() {
 
-    if (confirm('Ви дійсно хочете очистити всі локальні дані?')) {
+    if (confirm('Ви дійсно хочете очистити всі локальні дані?')) {
 
-        localStorage.clear();
+        localStorage.clear();
 
-        location.reload();
+        location.reload();
 
-    }
+    }
 
 }
 
@@ -687,6 +684,87 @@ export function confirmMoveLesson() {
     }
 
     closeMoveLessonModal();
+}
+
+// Drag-and-drop — конфлікти та виконання
+
+let pendingDropData = null;
+
+function executeDrop(data) {
+    const { lessonId, lessonTitle, sourceDateStr, targetDateStr, targetTimeStr, sourceType, movedLessonId } = data;
+
+    if (sourceType === 'single_event') {
+        const ev = state.singleEvents.find(item => item.id === lessonId);
+        if (!ev) return;
+        ev.dateStr = targetDateStr;
+        ev.timeStr = targetTimeStr;
+        saveAllData();
+        renderCalendar();
+    } else if (sourceType === 'moved_lesson') {
+        state.movedLessons = state.movedLessons.filter(ml => ml.id !== movedLessonId);
+        const cancelKey = `${lessonId}_${sourceDateStr}`;
+        if (!state.cancelledDates.includes(cancelKey)) {
+            state.cancelledDates.push(cancelKey);
+        }
+        const oldPrepKey = `${lessonId}_${sourceDateStr}`;
+        const newPrepKey = `${lessonId}_${targetDateStr}`;
+        if (state.prepOverrides[oldPrepKey]) {
+            state.prepOverrides[newPrepKey] = state.prepOverrides[oldPrepKey];
+            delete state.prepOverrides[oldPrepKey];
+        }
+        if (state.completedPreps.includes(oldPrepKey)) {
+            state.completedPreps = state.completedPreps.filter(k => k !== oldPrepKey);
+            if (!state.completedPreps.includes(newPrepKey)) {
+                state.completedPreps.push(newPrepKey);
+            }
+        }
+        state.movedLessons.push({
+            id: 'moved_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+            lessonId,
+            originalDateStr: sourceDateStr,
+            dateStr: targetDateStr,
+            timeStr: targetTimeStr,
+            title: lessonTitle
+        });
+        saveAllData();
+        renderCalendar();
+    } else {
+        moveLessonInstance(lessonId, sourceDateStr, targetDateStr, targetTimeStr, lessonTitle);
+    }
+}
+
+export function handleLessonDrop(data) {
+    const { lessonId, lessonTitle, lessonTime, sourceDateStr, targetDateStr, targetTimeStr, sourceType, movedLessonId } = data;
+
+    if (targetDateStr === sourceDateStr && targetTimeStr === lessonTime) return;
+
+    const conflicts = checkConflicts(lessonId, targetDateStr, targetTimeStr, sourceType === 'single_event' ? lessonId : null);
+
+    if (conflicts.length > 0) {
+        pendingDropData = data;
+        const list = document.getElementById('conflictList');
+        if (list) {
+            list.innerHTML = conflicts.map(c => `<span>• ${c.msg}</span>`).join('');
+        }
+        const modal = document.getElementById('conflictModal');
+        if (modal) modal.style.display = 'flex';
+        return;
+    }
+
+    executeDrop(data);
+}
+
+export function confirmConflictOverride() {
+    if (!pendingDropData) return;
+    closeConflictModal();
+    executeDrop(pendingDropData);
+    pendingDropData = null;
+}
+
+export function closeConflictModal() {
+    const modal = document.getElementById('conflictModal');
+    if (modal) modal.style.display = 'none';
+    pendingDropData = null;
 }
 
 // modals.js - ВИПРАВЛЕННЯ
