@@ -2,42 +2,10 @@
 const STORED_VERSION = localStorage.getItem('gridify_version');
 
 if (STORED_VERSION !== CURRENT_VERSION) {
-    console.log(`[HARD RESET] Версія змінилася: ${STORED_VERSION} → ${CURRENT_VERSION}`);
-
-    // 1. Видаляємо ВСІ кеші
-    if ('caches' in window) {
-        caches.keys().then((cacheNames) => {
-            cacheNames.forEach((cacheName) => {
-                caches.delete(cacheName).then(() => {
-                    console.log(`[HARD RESET] Видалено кеш: ${cacheName}`);
-                });
-            });
-        });
-    }
-
-    // 2. Видаляємо ВСІ Service Workers
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-            registrations.forEach((registration) => {
-                registration.unregister().then(() => {
-                    console.log(`[HARD RESET] Unregistered Service Worker`);
-                });
-            });
-        });
-    }
-
-    // 3. Видаляємо localStorage (ОПЦІОНАЛЬНО - якщо хочеш очистити дані користувача)
-    // localStorage.clear();
-
-    // 4. Видаляємо sessionStorage
+    console.log(`[VERSION] Зміна: ${STORED_VERSION} → ${CURRENT_VERSION}`);
     sessionStorage.clear();
-
-    // 5. Зберігаємо нову версію
     localStorage.setItem('gridify_version', CURRENT_VERSION);
-
-    // 6. ПРИМУСОВО перезавантажуємо сторінку
-    console.log(`[HARD RESET] Перезавантажуємо сторінку...`);
-    location.reload(true); // true = примусовий hard refresh
+    console.log(`[VERSION] Новий ServiceWorker перезавантажить сторінку.`);
 }
 
 
@@ -90,8 +58,25 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuthListeners();
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch((err) => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            if (reg.active && !navigator.serviceWorker.controller) {
+                console.log('[SW] SW встановлено, перезавантаження...');
+                location.reload();
+            }
+            reg.addEventListener('updatefound', () => {
+                const newSW = reg.installing;
+                newSW.addEventListener('statechange', () => {
+                    if (newSW.state === 'activated') {
+                        console.log('[SW] Нова версія активована.');
+                    }
+                });
+            });
+        }).catch((err) => {
             console.error('ServiceWorker registration failed: ', err);
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('[SW] Контролер змінено, перезавантаження...');
+            location.reload();
         });
     }
 

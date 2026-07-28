@@ -1,5 +1,5 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
-const CACHE_VERSION = 'v1.0.14'; // має відповідати window.APP_VERSION в index.html
+const CACHE_VERSION = 'v1.0.15'; // має відповідати window.APP_VERSION в index.html
 const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
 const BASE_PATH = '/Gridify-Lessons';
 
@@ -16,6 +16,7 @@ const urlsToCache = [
     BASE_PATH + '/modals.js',
     BASE_PATH + '/notifications.js',
     BASE_PATH + '/main.js',
+    BASE_PATH + '/color-picker.js',
     BASE_PATH + '/manifest.json'
 ];
 
@@ -24,7 +25,14 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log(`[SW] Caching ${urlsToCache.length} files`);
-            return cache.addAll(urlsToCache);
+            return Promise.all(
+                urlsToCache.map(url =>
+                    fetch(url, { cache: 'no-cache' }).then(r => {
+                        if (r.ok) return cache.put(url, r);
+                        console.log(`[SW] Failed to cache ${url}`);
+                    })
+                )
+            );
         })
     );
     self.skipWaiting();
@@ -34,35 +42,34 @@ self.addEventListener('activate', (event) => {
     console.log(`[SW] Activating ${CACHE_NAME}`);
     event.waitUntil(
         caches.keys().then((cacheNames) => {
+            const oldCaches = cacheNames.filter(c => c !== CACHE_NAME);
             return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log(`[SW] Deleting old cache: ${cacheName}`);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
+                oldCaches.map(c => caches.delete(c))
+            ).then(() => oldCaches.length > 0);
+        }).then((hadOldCaches) => {
+            self.clients.claim();
+            if (hadOldCaches) {
+                return self.clients.matchAll({ type: 'window' }).then(clients => {
+                    clients.forEach(c => c.navigate(c.url));
+                });
+            }
         })
     );
-    self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // ✅ Firebase та зовнішні сервіси — пропускаємо Service Worker
     if (url.hostname.includes('firebaseapp.com') ||
         url.hostname.includes('firestore.googleapis.com') ||
         url.hostname.includes('googleapis.com') ||
         url.hostname.includes('gstatic.com') ||
         url.hostname.includes('fonts.googleapis.com') ||
         url.hostname.includes('cdn.jsdelivr.net')) {
-        // Дозволяємо браузеру обробити запит нормально, без Service Worker
         event.respondWith(fetch(event.request));
         return;
     }
 
-    // ✅ Для локальних файлів використовуємо кеш
     event.respondWith(
         caches.match(event.request).then((response) => {
             if (response) {

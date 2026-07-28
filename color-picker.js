@@ -4,10 +4,12 @@ const PICKER_WIDTH = 220;
 const PICKER_HEIGHT = 160;
 
 let currentVarName = '';
+let originalColor = '';
 let isSVDragging = false;
 let isHueDragging = false;
 
 let currentHsv = { h: 0, s: 0, v: 1 };
+let currentHex = '#000000';
 
 function hexToRgb(hex) {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -75,14 +77,13 @@ function renderHueBar(canvas) {
     }
 }
 
-function updateModalUI() {
-    const hex = rgbToHex(...Object.values(hsvToRgb(currentHsv.h, currentHsv.s, currentHsv.v)).map(Math.round));
+function updateModalUI(skipHexUpdate) {
     const preview = document.querySelector('.cp-preview');
     const cpHex = document.querySelector('.cp-hex-input');
     const svHandle = document.querySelector('.cp-sv-handle');
     const hueHandle = document.querySelector('.cp-hue-handle');
-    if (preview) preview.style.background = hex;
-    if (cpHex) cpHex.value = hex.slice(1);
+    if (preview) preview.style.background = currentHex;
+    if (!skipHexUpdate && cpHex) cpHex.value = currentHex.slice(1);
     if (svHandle) {
         svHandle.style.left = `${currentHsv.s * PICKER_WIDTH}px`;
         svHandle.style.top = `${(1 - currentHsv.v) * PICKER_HEIGHT}px`;
@@ -91,7 +92,7 @@ function updateModalUI() {
 }
 
 function getCurrentHexFromPicker() {
-    return rgbToHex(...Object.values(hsvToRgb(currentHsv.h, currentHsv.s, currentHsv.v)).map(Math.round));
+    return currentHex;
 }
 
 export function openColorPicker(varName) {
@@ -100,7 +101,8 @@ export function openColorPicker(varName) {
 
     currentVarName = varName;
     const root = getComputedStyle(document.documentElement);
-    const currentHex = root.getPropertyValue(varName).trim() || '#000000';
+    originalColor = root.getPropertyValue(varName).trim() || '#000000';
+    currentHex = originalColor;
     const rgb = hexToRgb(currentHex);
     currentHsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
 
@@ -127,12 +129,25 @@ export function closeColorPicker() {
     isHueDragging = false;
 }
 
-function applyColorPicker() {
+function liveApply() {
     const hex = getCurrentHexFromPicker();
     if (currentVarName) {
         updateThemeColor(currentVarName, hex);
         const preview = document.querySelector(`.color-preview[data-var="${currentVarName}"]`);
         if (preview) preview.style.background = hex;
+    }
+}
+
+function applyAndClose() {
+    liveApply();
+    closeColorPicker();
+}
+
+function cancelAndClose() {
+    if (currentVarName && originalColor) {
+        updateThemeColor(currentVarName, originalColor);
+        const preview = document.querySelector(`.color-preview[data-var="${currentVarName}"]`);
+        if (preview) preview.style.background = originalColor;
     }
     closeColorPicker();
 }
@@ -143,6 +158,7 @@ function onSVMove(canvas, clientX, clientY) {
     const y = Math.max(0, Math.min(PICKER_HEIGHT, clientY - rect.top));
     currentHsv.s = x / PICKER_WIDTH;
     currentHsv.v = 1 - y / PICKER_HEIGHT;
+    currentHex = rgbToHex(...Object.values(hsvToRgb(currentHsv.h, currentHsv.s, currentHsv.v)).map(Math.round));
     updateModalUI();
 }
 
@@ -150,6 +166,7 @@ function onHueMove(canvas, clientX) {
     const rect = canvas.getBoundingClientRect();
     const x = Math.max(0, Math.min(PICKER_WIDTH, clientX - rect.left));
     currentHsv.h = x / PICKER_WIDTH;
+    currentHex = rgbToHex(...Object.values(hsvToRgb(currentHsv.h, currentHsv.s, currentHsv.v)).map(Math.round));
     const svCanvas = document.querySelector('.cp-sv-canvas');
     if (svCanvas) renderSVField(svCanvas, currentHsv.h);
     updateModalUI();
@@ -177,10 +194,12 @@ export function initColorPickers() {
         svCanvas.addEventListener('mousedown', (e) => {
             isSVDragging = true;
             onSVMove(svCanvas, e.clientX, e.clientY);
+            liveApply();
         });
         svCanvas.addEventListener('touchstart', (e) => {
             isSVDragging = true;
             onSVMove(svCanvas, e.touches[0].clientX, e.touches[0].clientY);
+            liveApply();
         });
     }
 
@@ -188,46 +207,76 @@ export function initColorPickers() {
         hueCanvas.addEventListener('mousedown', (e) => {
             isHueDragging = true;
             onHueMove(hueCanvas, e.clientX);
+            liveApply();
         });
         hueCanvas.addEventListener('touchstart', (e) => {
             isHueDragging = true;
             onHueMove(hueCanvas, e.touches[0].clientX);
+            liveApply();
         });
     }
 
     document.addEventListener('mousemove', (e) => {
-        if (isSVDragging && svCanvas) onSVMove(svCanvas, e.clientX, e.clientY);
-        if (isHueDragging && hueCanvas) onHueMove(hueCanvas, e.clientX);
+        if (isSVDragging && svCanvas) { onSVMove(svCanvas, e.clientX, e.clientY); liveApply(); }
+        if (isHueDragging && hueCanvas) { onHueMove(hueCanvas, e.clientX); liveApply(); }
     });
 
     document.addEventListener('touchmove', (e) => {
-        if (isSVDragging && svCanvas) onSVMove(svCanvas, e.touches[0].clientX, e.touches[0].clientY);
-        if (isHueDragging && hueCanvas) onHueMove(hueCanvas, e.touches[0].clientX);
+        if (isSVDragging && svCanvas) { onSVMove(svCanvas, e.touches[0].clientX, e.touches[0].clientY); liveApply(); }
+        if (isHueDragging && hueCanvas) { onHueMove(hueCanvas, e.touches[0].clientX); liveApply(); }
     });
 
     document.addEventListener('mouseup', () => { isSVDragging = false; isHueDragging = false; });
     document.addEventListener('touchend', () => { isSVDragging = false; isHueDragging = false; });
 
     if (cpHex) {
+        cpHex.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+            if (!text) return;
+            const clean = text.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+            const start = cpHex.selectionStart;
+            const end = cpHex.selectionEnd;
+            const before = cpHex.value.slice(0, start);
+            const after = cpHex.value.slice(end);
+            cpHex.value = (before + clean + after).slice(0, 6);
+            const newCursor = Math.min(start + clean.length, 6);
+            cpHex.selectionStart = cpHex.selectionEnd = newCursor;
+            cpHex.dispatchEvent(new Event('input', { bubbles: true }));
+        });
         cpHex.addEventListener('input', () => {
-            const val = cpHex.value;
+            let val = cpHex.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+            cpHex.value = val;
             if (/^[0-9a-fA-F]{6}$/.test(val)) {
-                const c = hexToRgb('#' + val);
+                currentHex = '#' + val;
+                const c = hexToRgb(currentHex);
                 currentHsv = rgbToHsv(c.r, c.g, c.b);
                 if (svCanvas) renderSVField(svCanvas, currentHsv.h);
-                updateModalUI();
+                updateModalUI(true);
+                liveApply();
+            }
+        });
+        cpHex.addEventListener('change', () => {
+            let val = cpHex.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+            if (/^[0-9a-fA-F]{6}$/.test(val)) {
+                currentHex = '#' + val;
+                const c = hexToRgb(currentHex);
+                currentHsv = rgbToHsv(c.r, c.g, c.b);
+                if (svCanvas) renderSVField(svCanvas, currentHsv.h);
+                updateModalUI(true);
+                liveApply();
             }
         });
     }
 
-    document.getElementById('btnApplyColor')?.addEventListener('click', applyColorPicker);
-    document.getElementById('btnCancelColor')?.addEventListener('click', closeColorPicker);
+    document.getElementById('btnApplyColor')?.addEventListener('click', applyAndClose);
+    document.getElementById('btnCancelColor')?.addEventListener('click', cancelAndClose);
 
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeColorPicker();
+        if (e.target === modal) cancelAndClose();
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.style.display !== 'none') closeColorPicker();
+        if (e.key === 'Escape' && modal.style.display !== 'none') cancelAndClose();
     });
 }

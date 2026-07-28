@@ -1,36 +1,24 @@
-﻿import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
-const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ||
-    new URLSearchParams(window.location.search).has('dev') ||
-    localStorage.getItem('db_mode') === 'dev';
-
-const firebaseConfig = isDev ? {
+const firebaseConfig = {
     apiKey: "AIzaSyAHv_kFE3Ps2KA7EWPAFwAx9LMqnFnD-xc",
     authDomain: "gridify-lessons-dev.firebaseapp.com",
     projectId: "gridify-lessons-dev",
     storageBucket: "gridify-lessons-dev.firebasestorage.app",
     messagingSenderId: "717272115027",
     appId: "1:717272115027:web:dda000866b22f92b1be3a6"
-} : {
-    apiKey: "AIzaSyD5DxkDafTgOh_C-PnLbmAC39EJjXrJklU",
-    authDomain: "gridify-lesson.firebaseapp.com",
-    projectId: "gridify-lesson",
-    storageBucket: "gridify-lesson.firebasestorage.app",
-    messagingSenderId: "1088201366915",
-    appId: "1:1088201366915:web:ff04534795a524d293eab6"
 };
 
-const appName = isDev ? 'dev' : 'prod';
-export const app = initializeApp(firebaseConfig, appName);
+export const app = initializeApp(firebaseConfig, 'dev');
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 export const WORK_START_HOUR = 8;
 export const WORK_END_HOUR = 22;
 export const LESSON_DURATION = 90;
-export const SLOT_HEIGHT = 40; // висота 30-хвилинного слота в пікселях
+export const SLOT_HEIGHT = 40;
 
 export const REGIONAL_TIMEZONES = [
     { zone: 'Pacific/Midway', label: '(UTC-11:00) Мідуей, Паго-Паго' },
