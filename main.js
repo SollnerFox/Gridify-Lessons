@@ -34,7 +34,7 @@ import {
     closeMoveLessonModal,
     confirmMoveLesson
 } from "./modals.js";
-import { SLOT_HEIGHT } from './config.js';
+import { SLOT_HEIGHT, isDev } from './config.js';
 
 setModalFunctions({ showContextMenu, openPrepModal, openLessonEditModal });
 
@@ -83,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateCurrentTimeLine, 60000);
 
     const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    if (isDev) {
+        document.getElementById('devBanner').style.display = 'flex';
+    }
+
     if (toggleSidebarBtn) {
         toggleSidebarBtn.addEventListener('click', () => {
             const sidebar = document.getElementById('appSidebar');

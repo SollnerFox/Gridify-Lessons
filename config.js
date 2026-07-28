@@ -2,7 +2,7 @@
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
-const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ||
+export const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ||
     new URLSearchParams(window.location.search).has('dev') ||
     localStorage.getItem('db_mode') === 'dev';
 
