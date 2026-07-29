@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
@@ -13,91 +13,91 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#7c3aed">
-  <!-- Р†РєРѕРЅРєР° РґР»СЏ РІРєР»Р°РґРѕРє Р±СЂР°СѓР·РµСЂР° (Favicon) -->
+  <!-- Іконка для вкладок браузера (Favicon) -->
   <link rel="icon" type="image/png" sizes="32x32" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 
-  <!-- Р†РєРѕРЅРєР° РґР»СЏ РїСЂРёСЃС‚СЂРѕС—РІ Apple (iOS Safari) -->
+  <!-- Іконка для пристроїв Apple (iOS Safari) -->
   <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 
 <div id="authModal" class="modal" style="display: none; z-index: 1000;">
   <div class="modal-content" style="text-align: center;">
-    <h3>РђРІС‚РѕСЂРёР·Р°С†С–СЏ</h3>
+    <h3>Авторизація</h3>
     <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;">
-      РЈРІС–Р№РґС–С‚СЊ РґР»СЏ СЃРёРЅС…СЂРѕРЅС–Р·Р°С†С–С— СЂРѕР·РєР»Р°РґСѓ Р· С…РјР°СЂРѕСЋ Р°Р±Рѕ РїСЂРѕРґРѕРІР¶СѓР№С‚Рµ Р°РЅРѕРЅС–РјРЅРѕ.
+      Увійдіть для синхронізації розкладу з хмарою або продовжуйте анонімно.
     </p>
     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
-      <button class="btn btn-primary" id="btnGoogleSignIn"><i class="ph ph-google-logo"></i> РЈРІС–Р№С‚Рё С‡РµСЂРµР· Google</button>
-      <button class="btn" id="btnAnonSignIn"><i class="ph ph-user-circle"></i> РџСЂРѕРґРѕРІР¶РёС‚Рё Р±РµР· СЂРµС”СЃС‚СЂР°С†С–С—</button>
+      <button class="btn btn-primary" id="btnGoogleSignIn"><i class="ph ph-google-logo"></i> Увійти через Google</button>
+      <button class="btn" id="btnAnonSignIn"><i class="ph ph-user-circle"></i> Продовжити без реєстрації</button>
     </div>
   </div>
 </div>
 
-<div id="devBanner" class="dev-banner" style="display: none;"><i class="ph ph-flask"></i> РўР•РЎРўРћР’Рђ Р‘РђР—Рђ Р”РђРќРРҐ</div>
+<div id="devBanner" class="dev-banner" style="display: none;"><i class="ph ph-flask"></i> ТЕСТОВА БАЗА ДАНИХ</div>
 <header class="top-bar">
   <div class="controls">
     <div class="nav-group">
-      <button class="btn nav-btn" data-tooltip="в†ђ" onclick="changeWeek(-1)"><i class="ph ph-caret-left"></i></button>
-      <button class="btn nav-btn" data-tooltip="T" onclick="changeWeek(0)">РЎСЊРѕРіРѕРґРЅС–</button>
-      <button class="btn nav-btn" data-tooltip="в†’" onclick="changeWeek(1)"><i class="ph ph-caret-right"></i></button>
+      <button class="btn nav-btn" data-tooltip="←" onclick="changeWeek(-1)"><i class="ph ph-caret-left"></i></button>
+      <button class="btn nav-btn" data-tooltip="T" onclick="changeWeek(0)">Сьогодні</button>
+      <button class="btn nav-btn" data-tooltip="→" onclick="changeWeek(1)"><i class="ph ph-caret-right"></i></button>
     </div>
     <span id="week-label" class="week-label"></span>
   </div>
 
   <div class="right-controls">
-    <span id="syncStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 10px; display: flex; align-items: center; gap: 4px;"><i class="ph ph-cloud-slash"></i> РћС„Р»Р°Р№РЅ</span>
+    <span id="syncStatus" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 10px; display: flex; align-items: center; gap: 4px;"><i class="ph ph-cloud-slash"></i> Офлайн</span>
 
     <div id="globalNonWorkingWrapper" class="header-checkbox-label" style="display: none;">
-      <input type="checkbox" id="globalNonWorking"> Р©РѕС‚РёР¶РЅРµРІРѕ
+      <input type="checkbox" id="globalNonWorking"> Щотижнево
     </div>
-    <button id="modeBtn" class="btn" data-tooltip="E" onclick="toggleEditMode()"><i class="ph ph-pencil-simple"></i> Р РµР¶РёРј: Р—РІРёС‡Р°Р№РЅРёР№</button>
+    <button id="modeBtn" class="btn" data-tooltip="E" onclick="toggleEditMode()"><i class="ph ph-pencil-simple"></i> Режим: Звичайний</button>
 
     <div class="settings-dropdown-container">
-      <button class="btn" onclick="toggleSettingsDropdown()"><i class="ph ph-gear"></i> РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ</button>
+      <button class="btn" onclick="toggleSettingsDropdown()"><i class="ph ph-gear"></i> Налаштування</button>
       <div id="settingsDropdown" class="settings-dropdown-menu" style="display: none;">
         <div class="dropdown-section form-group">
-          <label for="timezoneSelect">Р§Р°СЃРѕРІРёР№ РїРѕСЏСЃ РІС–РґРѕР±СЂР°Р¶РµРЅРЅСЏ</label>
+          <label for="timezoneSelect">Часовий пояс відображення</label>
           <select id="timezoneSelect" onchange="updateTimezone(this.value)"></select>
         </div>
 
         <div class="dropdown-section checkbox-group">
           <label>
-            <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)"> РЎРІС–С‚Р»Р° С‚РµРјР°
+            <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)"> Світла тема
           </label>
         </div>
 
         <div class="dropdown-section checkbox-group">
           <label>
-            <input type="checkbox" id="notifToggle"> РЈРІС–РјРєРЅСѓС‚Рё СЃРїРѕРІС–С‰РµРЅРЅСЏ Р·Р° 10 С…РІ
+            <input type="checkbox" id="notifToggle"> Увімкнути сповіщення за 10 хв
           </label>
         </div>
 
         <hr class="dropdown-divider">
         <div class="dropdown-section">
-          <h4>РљРѕР»СЊРѕСЂРѕРІР° РїР°Р»С–С‚СЂР°</h4>
+          <h4>Кольорова палітра</h4>
           <div class="color-pickers">
             <div class="color-field">
-              <label>РЈСЂРѕРєРё</label>
+              <label>Уроки</label>
               <div class="color-control">
                 <span id="prevLesson" class="color-preview" data-var="--lesson-color"></span>
               </div>
             </div>
             <div class="color-field">
-              <label>Р’С–РґРїСЂР°С†. 30С…РІ</label>
+              <label>Відпрац. 30хв</label>
               <div class="color-control">
                 <span id="prevPrep30" class="color-preview" data-var="--prep-color"></span>
               </div>
             </div>
             <div class="color-field">
-              <label>Р’С–РґРїСЂР°С†. 1РіРѕРґ</label>
+              <label>Відпрац. 1год</label>
               <div class="color-control">
                 <span id="prevPrep60" class="color-preview" data-var="--prep60-color"></span>
               </div>
             </div>
             <div class="color-field">
-              <label>РќРµСЂРѕР±РѕС‡РёР№ С‡Р°СЃ</label>
+              <label>Неробочий час</label>
               <div class="color-control">
                 <span id="prevNonWorking" class="color-preview" data-var="--non-working-bg"></span>
               </div>
@@ -107,11 +107,11 @@
 
         <hr class="dropdown-divider">
         <div class="dropdown-section" id="authSettingsSection">
-          <!-- Р”РёРЅР°РјС–С‡РЅРѕ Р·Р°РїРѕРІРЅСЋС”С‚СЊСЃСЏ -->
+          <!-- Динамічно заповнюється -->
         </div>
 
         <div class="dropdown-actions" style="margin-top: 10px;">
-          <button class="btn btn-danger" onclick="clearData()"><i class="ph ph-trash"></i> РћС‡РёСЃС‚РёС‚Рё Р»РѕРєР°Р»СЊРЅС– РґР°РЅС–</button>
+          <button class="btn btn-danger" onclick="clearData()"><i class="ph ph-trash"></i> Очистити локальні дані</button>
         </div>
       </div>
     </div>
@@ -120,57 +120,57 @@
 
 <div class="app-container">
   <aside class="sidebar" id="appSidebar">
-    <button class="sidebar-toggle-edge" id="toggleSidebarBtn" title="РџРµСЂРµРјРєРЅСѓС‚Рё Р±С–С‡РЅСѓ РїР°РЅРµР»СЊ">
+    <button class="sidebar-toggle-edge" id="toggleSidebarBtn" title="Перемкнути бічну панель">
       <i class="ph ph-caret-left"></i>
     </button>
 
     <div class="sidebar-wrapper">
       <div class="sidebar-content">
-        <h2><i class="ph ph-plus-circle"></i> РќРѕРІР° РіСЂСѓРїР°</h2>
+        <h2><i class="ph ph-plus-circle"></i> Нова група</h2>
 
         <div class="form-group">
-          <label for="title">Р“СЂСѓРїР°</label>
-          <input type="text" id="title" placeholder="РќР°РїСЂРёРєР»Р°Рґ: Python">
+          <label for="title">Група</label>
+          <input type="text" id="title" placeholder="Наприклад: Python">
         </div>
 
         <div class="form-group">
-          <label for="dayOfWeek">Р”РµРЅСЊ С‚РёР¶РЅСЏ</label>
+          <label for="dayOfWeek">День тижня</label>
           <select id="dayOfWeek">
-            <option value="" disabled selected hidden>РћР±РµСЂС–С‚СЊ РґРµРЅСЊ</option>
-            <option value="1">РџРѕРЅРµРґС–Р»РѕРє</option>
-            <option value="2">Р’С–РІС‚РѕСЂРѕРє</option>
-            <option value="3">РЎРµСЂРµРґР°</option>
-            <option value="4">Р§РµС‚РІРµСЂ</option>
-            <option value="5">Рџ'СЏС‚РЅРёС†СЏ</option>
-            <option value="6">РЎСѓР±РѕС‚Р°</option>
-            <option value="0">РќРµРґС–Р»СЏ</option>
+            <option value="" disabled selected hidden>Оберіть день</option>
+            <option value="1">Понеділок</option>
+            <option value="2">Вівторок</option>
+            <option value="3">Середа</option>
+            <option value="4">Четвер</option>
+            <option value="5">П'ятниця</option>
+            <option value="6">Субота</option>
+            <option value="0">Неділя</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="startTime">Р§Р°СЃ РїРѕС‡Р°С‚РєСѓ</label>
+          <label for="startTime">Час початку</label>
           <input type="time" id="startTime" step="1800">
           <small id="tzHint" class="tz-hint"></small>
         </div>
 
         <div class="form-group checkbox-group">
           <label>
-            <input type="checkbox" id="hasPrep"> +30 С…РІ РІС–РґРїСЂР°С†СЋРІР°РЅРЅСЏ РїРµСЂРµРґ СѓСЂРѕРєРѕРј
+            <input type="checkbox" id="hasPrep"> +30 хв відпрацювання перед уроком
           </label>
         </div>
 
         <div class="form-group">
-          <label for="startDate">РџРѕС‡Р°С‚РѕРє РєСѓСЂСЃСѓ</label>
+          <label for="startDate">Початок курсу</label>
           <input type="date" id="startDate">
         </div>
 
         <div class="form-group">
-          <label for="endDate">РљС–РЅРµС†СЊ РєСѓСЂСЃСѓ</label>
+          <label for="endDate">Кінець курсу</label>
           <input type="date" id="endDate">
         </div>
 
-        <button class="btn btn-primary" onclick="addLesson()"><i class="ph ph-floppy-disk"></i> Р—Р±РµСЂРµРіС‚Рё СѓСЂРѕРє</button>
-        <button onclick="exportScheduleImage()" class="btn btn-primary"><i class="ph ph-download-simple"></i> Р•РєСЃРїРѕСЂС‚СѓРІР°С‚Рё СЂРѕР·РєР»Р°Рґ</button>
+        <button class="btn btn-primary" onclick="addLesson()"><i class="ph ph-floppy-disk"></i> Зберегти урок</button>
+        <button onclick="exportScheduleImage()" class="btn btn-primary"><i class="ph ph-download-simple"></i> Експортувати розклад</button>
       </div>
     </div>
   </aside>
@@ -183,47 +183,47 @@
 
 <div id="prepModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <h3>Р—Р°РїРёСЃР°С‚Рё РЅР° РІС–РґРїСЂР°С†СЋРІР°РЅРЅСЏ</h3>
+    <h3>Записати на відпрацювання</h3>
     <div class="form-group">
-      <label for="modalStudentName">Р†Рј'СЏ С‚Р° РїСЂС–Р·РІРёС‰Рµ СѓС‡РЅСЏ</label>
-      <input type="text" id="modalStudentName" placeholder="Р’РІРµРґС–С‚СЊ С–Рј'СЏ">
+      <label for="modalStudentName">Ім'я та прізвище учня</label>
+      <input type="text" id="modalStudentName" placeholder="Введіть ім'я">
     </div>
     <div class="form-group" id="modalGroupContainer">
-      <label for="modalGroupName">РЇРєР° РіСЂСѓРїР°</label>
+      <label for="modalGroupName">Яка група</label>
       <select id="modalGroupName">
-        <option value="" disabled selected hidden>РћР±РµСЂС–С‚СЊ РіСЂСѓРїСѓ</option>
+        <option value="" disabled selected hidden>Оберіть групу</option>
       </select>
     </div>
     <div class="checkbox-group">
       <label>
         <input type="checkbox" id="modalPrepCompleted">
-        Р’РёРєРѕРЅР°РЅРѕ
+        Виконано
       </label>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="savePrepStudent()">Р—Р±РµСЂРµРіС‚Рё</button>
-      <button class="btn" onclick="closeModal()">РЎРєР°СЃСѓРІР°С‚Рё</button>
+      <button class="btn btn-primary" onclick="savePrepStudent()">Зберегти</button>
+      <button class="btn" onclick="closeModal()">Скасувати</button>
     </div>
   </div>
 </div>
 
 <div id="lessonEditModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <h3>Р РµРґР°РіСѓРІР°С‚Рё РЅР°Р·РІСѓ РіСЂСѓРїРё</h3>
+    <h3>Редагувати назву групи</h3>
     <div class="form-group">
-      <label for="modalLessonTitle">РќРѕРІР° РЅР°Р·РІР°</label>
-      <input type="text" id="modalLessonTitle" placeholder="Р’РІРµРґС–С‚СЊ РЅРѕРІСѓ РЅР°Р·РІСѓ">
+      <label for="modalLessonTitle">Нова назва</label>
+      <input type="text" id="modalLessonTitle" placeholder="Введіть нову назву">
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveLessonTitle()">Р—Р±РµСЂРµРіС‚Рё</button>
-      <button class="btn" onclick="closeLessonEditModal()">РЎРєР°СЃСѓРІР°С‚Рё</button>
+      <button class="btn btn-primary" onclick="saveLessonTitle()">Зберегти</button>
+      <button class="btn" onclick="closeLessonEditModal()">Скасувати</button>
     </div>
   </div>
 </div>
 
 <div id="colorPickerModal" class="modal" style="display: none;">
   <div class="modal-content cp-modal-content">
-    <h3>Р’РёР±С–СЂ РєРѕР»СЊРѕСЂСѓ</h3>
+    <h3>Вибір кольору</h3>
     <div class="cp-body">
       <div class="cp-sv-wrap">
         <canvas class="cp-sv-canvas" width="220" height="160"></canvas>
@@ -240,53 +240,53 @@
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" id="btnApplyColor">Р—Р°СЃС‚РѕСЃСѓРІР°С‚Рё</button>
-      <button class="btn" id="btnCancelColor">РЎРєР°СЃСѓРІР°С‚Рё</button>
+      <button class="btn btn-primary" id="btnApplyColor">Застосувати</button>
+      <button class="btn" id="btnCancelColor">Скасувати</button>
     </div>
   </div>
 </div>
 
 <div id="contextMenu" class="context-menu" style="display: none;">
   <div id="ctx-slot-actions">
-    <div class="ctx-item" onclick="handleContextMenuAction('prep60')"><i class="ph ph-clock-plus"></i> +1 РіРѕРґ РІС–РґРїСЂР°С†СЋРІР°РЅРЅСЏ</div>
-    <div class="ctx-item" onclick="handleContextMenuAction('toggleFullDayNonWorking')"><i class="ph ph-prohibit"></i> Р—Р°Р±Р»РѕРєСѓРІР°С‚Рё/Р РѕР·Р±Р»РѕРєСѓРІР°С‚Рё РґРµРЅСЊ</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('prep60')"><i class="ph ph-clock-plus"></i> +1 год відпрацювання</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('toggleFullDayNonWorking')"><i class="ph ph-prohibit"></i> Заблокувати/Розблокувати день</div>
   </div>
   <div id="ctx-lesson-actions">
-    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> РџРµСЂРµРЅРµСЃС‚Рё РЅР° С–РЅС€Сѓ РґР°С‚Сѓ</div>
-    <div class="ctx-item" onclick="handleContextMenuAction('cancel_single_date')"><i class="ph ph-x-circle"></i> РЎРєР°СЃСѓРІР°С‚Рё РЅР° С†РµР№ РґРµРЅСЊ</div>
-    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_series')"><i class="ph ph-trash"></i> Р’РёРґР°Р»РёС‚Рё РІРµСЃСЊ РєСѓСЂСЃ</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> Перенести на іншу дату</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('cancel_single_date')"><i class="ph ph-x-circle"></i> Скасувати на цей день</div>
+    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_series')"><i class="ph ph-trash"></i> Видалити весь курс</div>
   </div>
   <div id="ctx-other-actions">
-    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> РџРµСЂРµРЅРµСЃС‚Рё РЅР° С–РЅС€Сѓ РґР°С‚Сѓ</div>
-    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_single')"><i class="ph ph-trash"></i> Р’РёРґР°Р»РёС‚Рё</div>
+    <div class="ctx-item" onclick="handleContextMenuAction('move_single_lesson')"><i class="ph ph-arrows-left-right"></i> Перенести на іншу дату</div>
+    <div class="ctx-item danger" onclick="handleContextMenuAction('delete_single')"><i class="ph ph-trash"></i> Видалити</div>
   </div>
 </div>
 
 <div id="moveLessonModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <h3>РџРµСЂРµРЅРµСЃС‚Рё СѓСЂРѕРє РЅР° С–РЅС€Сѓ РґР°С‚Сѓ</h3>
+    <h3>Перенести урок на іншу дату</h3>
     <div class="form-group">
-      <label for="modalMoveDate">РќРѕРІР° РґР°С‚Р°</label>
+      <label for="modalMoveDate">Нова дата</label>
       <input type="date" id="modalMoveDate">
     </div>
     <div class="form-group">
-      <label for="modalMoveTime">РќРѕРІРёР№ С‡Р°СЃ</label>
+      <label for="modalMoveTime">Новий час</label>
       <input type="time" id="modalMoveTime" step="1800">
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="confirmMoveLesson()">РџРµСЂРµРЅРµСЃС‚Рё</button>
-      <button class="btn" onclick="closeMoveLessonModal()">РЎРєР°СЃСѓРІР°С‚Рё</button>
+      <button class="btn btn-primary" onclick="confirmMoveLesson()">Перенести</button>
+      <button class="btn" onclick="closeMoveLessonModal()">Скасувати</button>
     </div>
   </div>
 </div>
 
 <div id="conflictModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <h3><i class="ph ph-warning-circle"></i> Р’РёСЏРІР»РµРЅРѕ РєРѕРЅС„Р»С–РєС‚Рё</h3>
+    <h3><i class="ph ph-warning-circle"></i> Виявлено конфлікти</h3>
     <div id="conflictList" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; line-height: 1.5; max-height: 300px; overflow-y: auto;"></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="confirmConflictOverride()">Р’СЃРµ РѕРґРЅРѕ РїРµСЂРµРЅРµСЃС‚Рё</button>
-      <button class="btn" onclick="closeConflictModal()">РЎРєР°СЃСѓРІР°С‚Рё</button>
+      <button class="btn btn-primary" onclick="confirmConflictOverride()">Все одно перенести</button>
+      <button class="btn" onclick="closeConflictModal()">Скасувати</button>
     </div>
   </div>
 </div>
