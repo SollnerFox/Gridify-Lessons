@@ -8,7 +8,7 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.15';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>window.APP_VERSION = '1.0.16';function $v(u){return u+'?v='+window.APP_VERSION}</script>
   <script>document.write('<link rel="stylesheet" href="'+$v('styles.css')+'">')</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="manifest" href="manifest.json">
@@ -291,16 +291,6 @@
   </div>
 </div>
 
-<script>document.write('<script type="module" src="'+$v('config.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('state.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('storage.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('auth.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('settings.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('modals.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('calendar.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('notifications.js')+'"><\/script>')</script>
-<script>document.write('<script type="module">import{notificationManager}from"'+$v('./notifications.js')+'";notificationManager.bindToggle("#notifToggle");<\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('color-picker.js')+'"><\/script>')</script>
-<script>document.write('<script type="module" src="'+$v('main.js')+'"><\/script>')</script>
+<script>document.write('<script type="module" src="main.js"><\/script>')</script>
 </body>
 </html>

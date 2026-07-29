@@ -157,6 +157,7 @@ function syncColorPreviews() {
 }
 
 export function initNotifications() {
+    notificationManager.bindToggle('#notifToggle');
     syncNotifToggleState();
     if ('Notification' in window && Notification.permission === 'default' && state.isNotifEnabled) {
         notificationManager.requestPermission().then(() => syncNotifToggleState());
