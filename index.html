@@ -8,7 +8,68 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.23';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>window.APP_VERSION = '1.0.24';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <!-- ТІЛЬКИ ТЕСТОВА БАЗА: on-screen console для налагодження на телефоні (в проді не активно) -->
+  <script>
+  (function () {
+    function isTestMode() {
+      try {
+        return location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+          || location.search.indexOf('dev') !== -1
+          || location.search.indexOf('console') !== -1
+          || localStorage.getItem('db_mode') === 'dev';
+      } catch (e) { return false; }
+    }
+    if (!isTestMode()) return;
+
+    function ensureBox() {
+      var el = document.getElementById('phoneConsole');
+      if (el) return el;
+      el = document.createElement('div');
+      el.id = 'phoneConsole';
+      el.setAttribute('data-test','1');
+      el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;max-height:45vh;overflow:auto;'
+        + 'background:#1a1c23;color:#f87171;font:11px/1.45 ui-monospace,monospace;padding:8px;'
+        + 'border:2px solid #ef4444;border-radius:8px;white-space:pre-wrap;word-break:break-word;'
+        + 'box-shadow:0 4px 20px rgba(0,0,0,.5);text-align:left;';
+      var bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;color:#ef4444;margin-bottom:4px;';
+      var title = document.createElement('span');
+      title.textContent = 'TEST CONSOLE';
+      var close = document.createElement('button');
+      close.textContent = '✕';
+      close.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;padding:0 8px;line-height:20px;';
+      close.onclick = function () { el.style.display = 'none'; };
+      bar.appendChild(title);
+      bar.appendChild(close);
+      el.appendChild(bar);
+      el.appendChild(document.createElement('div')).className = 'body';
+      (document.body || document.documentElement).appendChild(el);
+      return el;
+    }
+    function log(msg) {
+      var box = ensureBox();
+      var body = box.querySelector('.body');
+      var line = document.createElement('div');
+      line.textContent = msg;
+      body.appendChild(line);
+      try { box.scrollTop = box.scrollHeight; } catch (e) {}
+    }
+    window.addEventListener('error', function (e) {
+      var src = (e.filename || '').split('/').pop() || '';
+      log('[error] ' + e.message + (src ? ' @' + src + ':' + (e.lineno || '') : ''));
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e.reason;
+      log('[reject] ' + ((r && (r.stack || r.message)) || String(r)));
+    });
+    window.addEventListener('error', function (e) {
+      if (e.target && e.target !== window && e.target.tagName === 'SCRIPT') {
+        log('[script-load-fail] ' + (e.target.src || '').split('/').pop());
+      }
+    }, true);
+  })();
+  </script>
   <script>document.write('<link rel="stylesheet" href="'+$v('assets/styles.css')+'">')</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="manifest" href="manifest.json">
