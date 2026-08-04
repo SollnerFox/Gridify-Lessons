@@ -1,6 +1,6 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
 // Версія береться з query-параметра ?v=APP_VERSION, який передається при реєстрації
-const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.26';
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.27';
 const CACHE_NAME = `gridify-cache-v${CACHE_VERSION}`;
 // BASE_PATH визначається динамічно зі scope SW, щоб працювати під будь-яким deployment-шляхом
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
@@ -22,7 +22,11 @@ const urlsToCache = [
     BASE_PATH + '/src/ui/color-picker.js',
     BASE_PATH + '/src/notifications/notifications.js',
     BASE_PATH + '/src/main.js',
-    BASE_PATH + '/manifest.json'
+    BASE_PATH + '/manifest.json',
+    // Firebase CDN-модулі кешуємо, щоб app не падав при транзитних збоях мережі до gstatic
+    'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js',
+    'https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js',
+    'https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -67,10 +71,7 @@ self.addEventListener('fetch', (event) => {
 
     if (url.hostname.includes('firebaseapp.com') ||
         url.hostname.includes('firestore.googleapis.com') ||
-        url.hostname.includes('googleapis.com') ||
-        url.hostname.includes('gstatic.com') ||
-        url.hostname.includes('fonts.googleapis.com') ||
-        url.hostname.includes('cdn.jsdelivr.net')) {
+        url.hostname.includes('googleapis.com')) {
         event.respondWith(fetch(event.request));
         return;
     }
@@ -80,7 +81,13 @@ self.addEventListener('fetch', (event) => {
             if (response) {
                 return response;
             }
-            return fetch(event.request).catch(() => {
+            return fetch(event.request).then((res) => {
+                if (res && res.ok) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+                }
+                return res;
+            }).catch(() => {
                 console.log(`[SW] Fetch failed: ${event.request.url}`);
             });
         })
