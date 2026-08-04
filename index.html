@@ -8,8 +8,8 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.24';function $v(u){return u+'?v='+window.APP_VERSION}</script>
-  <!-- ТІЛЬКИ ТЕСТОВА БАЗА: on-screen console для налагодження на телефоні (в проді не активно) -->
+  <script>window.APP_VERSION = '1.0.25';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <!-- ТІЛЬКИ ТЕСТУВАННЯ: on-screen console (активний лише з ?console або ?dev / localhost / db_mode=dev) -->
   <script>
   (function () {
     function isTestMode() {
@@ -22,32 +22,56 @@
     }
     if (!isTestMode()) return;
 
+    var LOGS = [];
     function ensureBox() {
       var el = document.getElementById('phoneConsole');
       if (el) return el;
       el = document.createElement('div');
       el.id = 'phoneConsole';
       el.setAttribute('data-test','1');
-      el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;max-height:45vh;overflow:auto;'
-        + 'background:#1a1c23;color:#f87171;font:11px/1.45 ui-monospace,monospace;padding:8px;'
-        + 'border:2px solid #ef4444;border-radius:8px;white-space:pre-wrap;word-break:break-word;'
-        + 'box-shadow:0 4px 20px rgba(0,0,0,.5);text-align:left;';
+      el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;max-height:78vh;overflow:auto;'
+        + 'background:#14161c;color:#fca5a5;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:12px 14px;'
+        + 'border-top:3px solid #ef4444;box-sizing:border-box;white-space:pre-wrap;word-break:break-word;'
+        + 'box-shadow:0 -6px 24px rgba(0,0,0,.55);text-align:left;';
       var bar = document.createElement('div');
-      bar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;color:#ef4444;margin-bottom:4px;';
+      bar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:bold;color:#ef4444;margin-bottom:8px;';
       var title = document.createElement('span');
       title.textContent = 'TEST CONSOLE';
+      var actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:8px;';
+      var copy = document.createElement('button');
+      copy.textContent = 'Копіювати весь лог';
+      copy.style.cssText = 'background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;padding:8px 12px;font-size:13px;font-weight:bold;';
       var close = document.createElement('button');
       close.textContent = '✕';
-      close.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;padding:0 8px;line-height:20px;';
+      close.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;padding:8px 12px;font-size:13px;font-weight:bold;';
+      copy.onclick = function () {
+        var text = LOGS.join('\n') || '(помилок не записано)';
+        function fallback() { alert(text); }
+        function done(ok) { copy.textContent = ok ? 'Скопійовано!' : 'Копіювати'; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ fallback(); done(false); });
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(true); } catch (e) { fallback(); done(false); }
+          document.body.removeChild(ta);
+        }
+      };
       close.onclick = function () { el.style.display = 'none'; };
+      actions.appendChild(copy);
+      actions.appendChild(close);
       bar.appendChild(title);
-      bar.appendChild(close);
+      bar.appendChild(actions);
       el.appendChild(bar);
       el.appendChild(document.createElement('div')).className = 'body';
       (document.body || document.documentElement).appendChild(el);
       return el;
     }
     function log(msg) {
+      LOGS.push(msg);
       var box = ensureBox();
       var body = box.querySelector('.body');
       var line = document.createElement('div');
