@@ -8,7 +8,7 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.25';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>window.APP_VERSION = '1.0.26';function $v(u){return u+'?v='+window.APP_VERSION}</script>
   <!-- ТІЛЬКИ ТЕСТУВАННЯ: on-screen console (активний лише з ?console або ?dev / localhost / db_mode=dev) -->
   <script>
   (function () {
@@ -88,10 +88,47 @@
       log('[reject] ' + ((r && (r.stack || r.message)) || String(r)));
     });
     window.addEventListener('error', function (e) {
-      if (e.target && e.target !== window && e.target.tagName === 'SCRIPT') {
-        log('[script-load-fail] ' + (e.target.src || '').split('/').pop());
+      var t = e.target;
+      if (t && t !== window && t.tagName === 'SCRIPT') {
+        var full = (t.src || '') + (document.baseURI ? '  [base ' + document.baseURI + ']' : '');
+        var extra = (e.message ? ' msg=' + e.message : '');
+        log('[script-load-fail] ' + full + extra);
       }
     }, true);
+
+    var LOCAL = ['src/main.js','src/config.js','src/state.js','src/services/auth.js','src/services/storage.js',
+      'src/ui/settings.js','src/ui/color-picker.js','src/core/calendar.js','src/core/calendar-renderer.js',
+      'src/core/modals.js','src/utils/dates.js','src/utils/time-utils.js','src/notifications/notifications.js'];
+    var CDN = ['https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js',
+      'https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js',
+      'https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js'];
+    var CNT = { ok: 0, fail: 0 };
+    function probe(rel, absolute) {
+      var u = absolute ? rel : new URL(rel, document.baseURI).href;
+      fetch(u, { cache: 'no-cache' }).then(function (r) {
+        CNT.ok++; log('[NET-OK] HTTP ' + r.status + '  ' + u);
+      }, function () {
+        CNT.fail++; log('[NET-FAIL] fetch error (DNS/TLS/CORS/online?)  ' + u);
+      }).catch(function () {
+        CNT.fail++; log('[NET-FAIL] fetch error  ' + u);
+      });
+    }
+    function runProbe() {
+      LOCAL.forEach(function (r) { probe(r, false); });
+      CDN.forEach(function (r) { probe(r, true); });
+      setTimeout(function () {
+        log('--- ПІДСУМОК МЕРЕЖІ: ок=' + CNT.ok + '  fail=' + CNT.fail + ' ---');
+      }, 8000);
+    }
+    setTimeout(function () {
+      log('ReadyState=' + document.readyState + '  base=' + document.baseURI);
+      if (navigator.serviceWorker) {
+        var c = navigator.serviceWorker.controller;
+        log(c ? ('[SW] керує: ' + c.scriptURL) : '[SW] сторінку НЕ контролює service worker (свіжий стан)');
+      }
+      log('[MAIN] window.addLesson=' + (typeof window.addLesson) + '  -> main.js ' + (typeof window.addLesson === 'function' ? 'ВИКОНАВСЯ' : 'НЕ ВИКОНАВСЯ'));
+      runProbe();
+    }, 1500);
   })();
   </script>
   <script>document.write('<link rel="stylesheet" href="'+$v('assets/styles.css')+'">')</script>
