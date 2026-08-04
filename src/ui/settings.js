@@ -1,8 +1,10 @@
-﻿import { REGIONAL_TIMEZONES } from "./config.js";
-import { state, formatDate } from "./state.js";
-import { saveAllData } from "./storage.js";
-import { renderCalendar } from "./calendar.js";
-import { notificationManager } from "./notifications.js";
+﻿import { REGIONAL_TIMEZONES } from "../config.js";
+import { state } from "../state.js";
+import { formatDate } from "../utils/dates.js";
+import { getTargetDate } from "../utils/time-utils.js";
+import { saveAllData } from "../services/storage.js";
+import { renderCalendar } from "../core/calendar.js";
+import { notificationManager } from "../notifications/notifications.js";
 
 export function toggleSettingsDropdown() {
     const dropdown = document.getElementById('settingsDropdown');
@@ -197,7 +199,7 @@ export function toggleNotifications(checked) {
 export function checkUpcomingEvents() {
     if (!state.isNotifEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
 
-    const now = new Date();
+    const now = getTargetDate();
     const todayStr = formatDate(now);
     const currentDayOfWeek = now.getDay();
 

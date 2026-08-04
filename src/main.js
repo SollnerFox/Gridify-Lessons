@@ -12,11 +12,11 @@ if (STORED_VERSION !== CURRENT_VERSION) {
 import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 import { db } from "./config.js";
 import { state } from "./state.js";
-import { initAuthListeners } from "./auth.js";
-import { applySavedTheme, populateTimezoneSelect, updateTimezoneHint, updateTimezone, applySavedColors, toggleSettingsDropdown, toggleTheme, toggleNotifications, updateThemeColor, initNotifications } from "./settings.js";
-import { initColorPickers } from "./color-picker.js";
-import { renderCalendar, changeWeek, toggleEditMode, applyDragSelection, updateCurrentTimeLine } from "./calendar.js";
-import { setModalFunctions, setDropHandler } from "./calendar-renderer.js";
+import { initAuthListeners } from "./services/auth.js";
+import { applySavedTheme, populateTimezoneSelect, updateTimezoneHint, updateTimezone, applySavedColors, toggleSettingsDropdown, toggleTheme, toggleNotifications, updateThemeColor, initNotifications } from "./ui/settings.js";
+import { initColorPickers } from "./ui/color-picker.js";
+import { renderCalendar, changeWeek, toggleEditMode, applyDragSelection, updateCurrentTimeLine } from "./core/calendar.js";
+import { setModalFunctions, setDropHandler } from "./core/calendar-renderer.js";
 import {
     resetLessonForm,
     addLesson,
@@ -36,7 +36,7 @@ import {
     handleLessonDrop,
     confirmConflictOverride,
     closeConflictModal
-} from "./modals.js";
+} from "./core/modals.js";
 import { SLOT_HEIGHT, isDev } from './config.js';
 
 setModalFunctions({ showContextMenu, openPrepModal, openLessonEditModal });
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuthListeners();
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
+        navigator.serviceWorker.register('./sw.js?v=' + encodeURIComponent(CURRENT_VERSION)).then(reg => {
             if (reg.active && !navigator.serviceWorker.controller) {
                 console.log('[SW] SW встановлено, перезавантаження...');
                 location.reload();
@@ -86,16 +86,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateCurrentTimeLine, 60000);
 
     const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const sidebarFab = document.getElementById('sidebarFab');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
     if (isDev) {
         document.getElementById('devBanner').style.display = 'flex';
     }
 
-    if (toggleSidebarBtn) {
-        toggleSidebarBtn.addEventListener('click', () => {
-            const sidebar = document.getElementById('appSidebar');
-            if (sidebar) sidebar.classList.toggle('collapsed');
-        });
-    }
+    const sidebarOpen = () => {
+        const sidebar = document.getElementById('appSidebar');
+        if (sidebar) sidebar.classList.remove('collapsed');
+        if (sidebarBackdrop) sidebarBackdrop.style.display = 'block';
+    };
+    const sidebarClose = () => {
+        const sidebar = document.getElementById('appSidebar');
+        if (sidebar) sidebar.classList.add('collapsed');
+        if (sidebarBackdrop) sidebarBackdrop.style.display = 'none';
+    };
+
+    const toggleSidebar = () => {
+        const sidebar = document.getElementById('appSidebar');
+        const isOpen = sidebar && !sidebar.classList.contains('collapsed');
+        if (isOpen) sidebarClose();
+        else sidebarOpen();
+    };
+
+    if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    if (sidebarFab) sidebarFab.addEventListener('click', toggleSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', sidebarClose);
 
     // ✅ ТВІЙ ІСНУЮЧИЙ КОД - ЗАЛИШИТИ
     document.addEventListener('click', (e) => {
@@ -109,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ✅ ДОДАТИ НОВИЙ КОД (мій) - для очищення вибору при редагуванні неробочих годин
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('pointerup', () => {
         if (state.isMouseDown && state.isNonWorkingEditMode) {
             state.isMouseDown = false;
             applyDragSelection();

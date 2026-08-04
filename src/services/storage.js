@@ -1,6 +1,6 @@
 ﻿import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
-import { db } from "./config.js";
-import { state } from "./state.js";
+import { db } from "../config.js";
+import { state } from "../state.js";
 
 export function setSyncStatus(status) {
     const el = document.getElementById('syncStatus');
@@ -50,8 +50,16 @@ function triggerCloudSave() {
     // ВИПРАВЛЕННЯ: Додаємо перевірку на наявність даних
     const hasData = state.lessons.length > 0 ||
         state.movedLessons.length > 0 ||
+        state.cancelledDates.length > 0 ||
         state.singleEvents.length > 0 ||
-        Object.keys(state.prepOverrides).length > 0;
+        state.nonWorkingSlots.length > 0 ||
+        state.recurringNonWorkingSlots.length > 0 ||
+        state.workingExceptions.length > 0 ||
+        state.fullDayBlockedSlots.length > 0 ||
+        state.fullDayRemovedExceptions.length > 0 ||
+        Object.keys(state.prepOverrides).length > 0 ||
+        state.completedPreps.length > 0 ||
+        Object.keys(state.customColors || {}).length > 0;
 
     if (!hasData) {
         setSyncStatus("Синхронізовано");

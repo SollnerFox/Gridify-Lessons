@@ -3,11 +3,11 @@
     onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
-import { auth, db } from "./config.js";
-import { state } from "./state.js";
+import { auth, db } from "../config.js";
+import { state } from "../state.js";
 import { setSyncStatus, forceSaveToCloud } from "./storage.js";
-import { renderCalendar } from "./calendar.js";
-import { applySavedTheme, applySavedColors } from "./settings.js";
+import { renderCalendar } from "../core/calendar.js";
+import { applySavedTheme, applySavedColors } from "../ui/settings.js";
 
 // auth.js - ВИПРАВЛЕНА ФУНКЦІЯ handleGoogleAuth (виділена окремо)
 async function handleGoogleAuth() {

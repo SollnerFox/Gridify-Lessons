@@ -1,22 +1,27 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
-const CACHE_VERSION = 'v1.0.17'; // має відповідати window.APP_VERSION в index.html
-const CACHE_NAME = `gridify-cache-${CACHE_VERSION}`;
-const BASE_PATH = '/Gridify-Lessons';
+// Версія береться з query-параметра ?v=APP_VERSION, який передається при реєстрації
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.23';
+const CACHE_NAME = `gridify-cache-v${CACHE_VERSION}`;
+// BASE_PATH визначається динамічно зі scope SW, щоб працювати під будь-яким deployment-шляхом
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 
 const urlsToCache = [
     BASE_PATH + '/',
     BASE_PATH + '/index.html',
-    BASE_PATH + '/styles.css',
-    BASE_PATH + '/config.js',
-    BASE_PATH + '/state.js',
-    BASE_PATH + '/storage.js',
-    BASE_PATH + '/auth.js',
-    BASE_PATH + '/calendar.js',
-    BASE_PATH + '/settings.js',
-    BASE_PATH + '/modals.js',
-    BASE_PATH + '/notifications.js',
-    BASE_PATH + '/main.js',
-    BASE_PATH + '/color-picker.js',
+    BASE_PATH + '/assets/styles.css',
+    BASE_PATH + '/src/config.js',
+    BASE_PATH + '/src/state.js',
+    BASE_PATH + '/src/utils/dates.js',
+    BASE_PATH + '/src/utils/time-utils.js',
+    BASE_PATH + '/src/services/storage.js',
+    BASE_PATH + '/src/services/auth.js',
+    BASE_PATH + '/src/core/calendar.js',
+    BASE_PATH + '/src/core/calendar-renderer.js',
+    BASE_PATH + '/src/core/modals.js',
+    BASE_PATH + '/src/ui/settings.js',
+    BASE_PATH + '/src/ui/color-picker.js',
+    BASE_PATH + '/src/notifications/notifications.js',
+    BASE_PATH + '/src/main.js',
     BASE_PATH + '/manifest.json'
 ];
 
@@ -71,7 +76,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     event.respondWith(
-        caches.match(event.request).then((response) => {
+        caches.match(event.request, { ignoreSearch: true }).then((response) => {
             if (response) {
                 return response;
             }

@@ -1,11 +1,11 @@
-﻿import { state } from "./state.js";
+﻿import { state } from "../state.js";
 
-import { saveAllData } from "./storage.js";
+import { saveAllData } from "../services/storage.js";
 
 import { renderCalendar } from "./calendar.js";
 import { checkConflicts } from "./calendar-renderer.js";
 
-import { WORK_START_HOUR, WORK_END_HOUR } from "./config.js";
+import { WORK_START_HOUR, WORK_END_HOUR, LESSON_DURATION } from "../config.js";
 
 export function resetLessonForm() {
 
@@ -387,7 +387,7 @@ export function handleContextMenuAction(action) {
                 slotTimes.push(`${String(hour).padStart(2, '0')}:${minute}`);
             });
         }
-        const dayOfWeek = new Date(dateStr).getDay();
+        const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
 
         const allNonWorking = slotTimes.every(slotTimeStr => {
             const nwKey = `${dateStr}_${slotTimeStr}`;
@@ -449,8 +449,7 @@ export function handleContextMenuAction(action) {
         } else if (type === 'moved_lesson') {
             const ml = state.movedLessons.find(item => item.id === id);
             if (ml) {
-                state.movedLessons = state.movedLessons.filter(item => item.id !== id);
-                openMoveLessonModal('lesson', ml.lessonId, ml.originalDateStr || ml.dateStr, ml.title, ml.dateStr, ml.timeStr);
+                openMoveLessonModal('moved_lesson', ml.lessonId, ml.dateStr, ml.title, ml.dateStr, ml.timeStr, ml.id);
             } else {
                 const l = state.lessons.find(item => item.id === lessonId);
                 const lessonTitle = l ? l.title : '';
@@ -597,9 +596,7 @@ export function exportScheduleImage() {
             scale: 2,
             useCORS: true,
             logging: false,
-            allowTaint: true,
-            backgroundColor: null,
-            clonNode: true
+            backgroundColor: null
         }).then(canvas => {
             // Відновлюємо оригінальні стилі
             calendarEl.style.width = origWidth;
@@ -631,8 +628,8 @@ export function exportScheduleImage() {
 
 let activeMoveData = null;
 
-export function openMoveLessonModal(type, targetId, originalDateStr, lessonTitle, defaultDate, defaultTime) {
-    activeMoveData = { type, targetId, originalDateStr, lessonTitle };
+export function openMoveLessonModal(type, targetId, originalDateStr, lessonTitle, defaultDate, defaultTime, sourceMovedId) {
+    activeMoveData = { type, targetId, originalDateStr, lessonTitle, sourceMovedId };
     const dateInput = document.getElementById('modalMoveDate');
     const timeInput = document.getElementById('modalMoveTime');
     if (dateInput) dateInput.value = defaultDate || '';
@@ -661,9 +658,12 @@ export function confirmMoveLesson() {
         return;
     }
 
-    const { type, targetId, originalDateStr, lessonTitle } = activeMoveData;
+    const { type, targetId, originalDateStr, lessonTitle, sourceMovedId } = activeMoveData;
 
-    if (type === 'lesson') {
+    if (type === 'lesson' || type === 'moved_lesson') {
+        if (sourceMovedId) {
+            state.movedLessons = state.movedLessons.filter(ml => ml.id !== sourceMovedId);
+        }
         moveLessonInstance(targetId, originalDateStr, newDateStr, newTimeStr, lessonTitle);
     } else if (type === 'single_event') {
         const ev = state.singleEvents.find(item => item.id === targetId);
@@ -738,7 +738,13 @@ export function handleLessonDrop(data) {
 
     if (targetDateStr === sourceDateStr && targetTimeStr === lessonTime) return;
 
-    const conflicts = checkConflicts(lessonId, targetDateStr, targetTimeStr, sourceType === 'single_event' ? lessonId : null);
+    let moveDuration = LESSON_DURATION;
+    if (sourceType === 'single_event') {
+        const ev = state.singleEvents.find(e => e.id === lessonId);
+        if (ev) moveDuration = ev.duration || LESSON_DURATION;
+    }
+
+    const conflicts = checkConflicts(lessonId, targetDateStr, targetTimeStr, sourceType === 'single_event' ? lessonId : null, moveDuration);
 
     if (conflicts.length > 0) {
         pendingDropData = data;

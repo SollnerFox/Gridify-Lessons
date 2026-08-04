@@ -1,9 +1,10 @@
-import { state, formatDate } from "./state.js";
-import { WORK_START_HOUR, WORK_END_HOUR, SLOT_HEIGHT } from "./config.js";
+import { state } from "../state.js";
+import { formatDate } from "../utils/dates.js";
+import { WORK_START_HOUR, WORK_END_HOUR, SLOT_HEIGHT, LESSON_DURATION } from "../config.js";
 import {
     DAYS_SHORT, calcMinutesFromBase, calcTopPx, calcHeightPx,
     calcLessonPosition
-} from "./time-utils.js";
+} from "../utils/time-utils.js";
 
 let showContextMenu = () => {};
 let openPrepModal = () => {};
@@ -13,6 +14,44 @@ export function setModalFunctions(fns) {
     showContextMenu = fns.showContextMenu;
     openPrepModal = fns.openPrepModal;
     openLessonEditModal = fns.openLessonEditModal;
+}
+
+// Довге натискання (touch) для елементів без drag — відкриває контекстне меню
+function attachLongPress(el, menuDataFn) {
+    let timer = null;
+    let startX = 0;
+    let startY = 0;
+
+    const clear = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+    };
+
+    el.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        startX = e.clientX;
+        startY = e.clientY;
+        clear();
+        timer = setTimeout(() => {
+            clear();
+            const data = menuDataFn();
+            if (!data) return;
+            showContextMenu({
+                preventDefault() {},
+                clientX: startX,
+                clientY: startY,
+                pageX: startX + (window.scrollX || 0),
+                pageY: startY + (window.scrollY || 0)
+            }, data);
+        }, 500);
+    });
+
+    el.addEventListener('pointermove', (e) => {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) > 12) clear();
+    });
+
+    el.addEventListener('pointerup', clear);
+    el.addEventListener('pointercancel', clear);
+    el.addEventListener('pointerleave', clear);
 }
 
 function resolvePrepData(prepKey, groupName) {
@@ -45,7 +84,7 @@ function createSlotElement(hour, minute, currentDayStr, dayOfWeek) {
     el.dataset.time = slotTimeStr;
     if (isNonWorking) el.classList.add('non-working');
 
-    el.addEventListener('mouseenter', () => {
+    el.addEventListener('pointerenter', (e) => {
         if (!state.isNonWorkingEditMode && el.classList.contains('non-working')) return;
         if (state.isMouseDown && state.isNonWorkingEditMode) {
             state.selectedSlots.add(`${nwKey}|${recurringKey}`);
@@ -53,8 +92,9 @@ function createSlotElement(hour, minute, currentDayStr, dayOfWeek) {
         }
     });
 
-    el.addEventListener('mousedown', (e) => {
+    el.addEventListener('pointerdown', (e) => {
         if (!state.isNonWorkingEditMode || e.button !== 0) return;
+        e.preventDefault();
         state.isMouseDown = true;
         state.selectedSlots.clear();
         state.isSelectingMode = !el.classList.contains('non-working');
@@ -67,6 +107,8 @@ function createSlotElement(hour, minute, currentDayStr, dayOfWeek) {
             showContextMenu(e, { dateStr: currentDayStr, timeStr: slotTimeStr, type: 'slot' });
         }
     });
+
+    attachLongPress(el, () => state.isNonWorkingEditMode ? null : ({ dateStr: currentDayStr, timeStr: slotTimeStr, type: 'slot' }));
 
     return el;
 }
@@ -86,6 +128,7 @@ function createPrepBlock(id, dateStr, topPx, heightPx, groupName) {
 
     el.addEventListener('click', () => openPrepModal(prepKey, studentName, displayGroup, true));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'prep_override', key: prepKey }));
+    attachLongPress(el, () => ({ type: 'prep_override', key: prepKey }));
 
     return el;
 }
@@ -111,9 +154,11 @@ function createLessonBlock(lesson, currentDayStr, dayOfWeek) {
 
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'lesson', id: lesson.id, dateStr: currentDayStr }));
 
-    el.addEventListener('mousedown', (e) => {
+    el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
-        initDrag(e, lesson, currentDayStr, () => openLessonEditModal(lesson.id), { sourceType: 'lesson' });
+        e.preventDefault();
+        initDrag(e, lesson, currentDayStr, () => openLessonEditModal(lesson.id), { sourceType: 'lesson' },
+            () => ({ type: 'lesson', id: lesson.id, dateStr: currentDayStr }));
     });
 
     return el;
@@ -127,14 +172,42 @@ export function setDropHandler(cb) {
     dropHandler = cb;
 }
 
-function initDrag(e, lesson, dateStr, onClick, extra) {
+function initDrag(e, lesson, dateStr, onClick, extra, menuDataFn) {
     const startX = e.clientX;
     const startY = e.clientY;
+    const pointerId = e.pointerId;
     let isDragging = false;
+    let longPressFired = false;
     const calendar = document.getElementById('calendarView');
 
+    const cleanupHandlers = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+        clearTimeout(longPressTimer);
+    };
+
+    const longPressTimer = setTimeout(() => {
+        longPressFired = true;
+        cleanupDrag();
+        if (calendar) calendar.classList.remove('drag-active');
+        if (menuDataFn) {
+            showContextMenu({
+                preventDefault() {},
+                clientX: startX,
+                clientY: startY,
+                pageX: startX + (window.scrollX || 0),
+                pageY: startY + (window.scrollY || 0)
+            }, menuDataFn());
+        }
+    }, 500);
+
     const onMove = (ev) => {
-        if (!isDragging && (Math.abs(ev.clientX - startX) > 5 || Math.abs(ev.clientY - startY) > 5)) {
+        if (ev.pointerId !== pointerId && ev.pointerType !== 'mouse') return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!isDragging && (dx * dx + dy * dy) > 25) {
+            clearTimeout(longPressTimer);
             isDragging = true;
             if (calendar) calendar.classList.add('drag-active');
             createDragGhost(lesson.title, ev);
@@ -146,10 +219,11 @@ function initDrag(e, lesson, dateStr, onClick, extra) {
     };
 
     const onUp = (ev) => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        cleanupHandlers();
         cleanupDrag();
         if (calendar) calendar.classList.remove('drag-active');
+
+        if (longPressFired) return;
 
         if (isDragging) {
             const target = getDropTarget(ev);
@@ -164,13 +238,14 @@ function initDrag(e, lesson, dateStr, onClick, extra) {
                     ...extra
                 });
             }
-        } else {
+        } else if (ev.pointerType === 'mouse' && ev.button === 0) {
             onClick();
         }
     };
 
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
 }
 
 let dragGhost = null;
@@ -222,12 +297,12 @@ function cleanupDrag() {
     document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
 }
 
-export function checkConflicts(lessonId, targetDateStr, targetTimeStr, excludeEventId) {
+export function checkConflicts(lessonId, targetDateStr, targetTimeStr, excludeEventId, targetDuration = LESSON_DURATION) {
     const conflicts = [];
     const targetDayOfWeek = new Date(targetDateStr + 'T12:00:00').getDay();
     const [targetH, targetM] = targetTimeStr.split(':').map(Number);
     const targetStart = targetH * 60 + targetM;
-    const targetEnd = targetStart + 90;
+    const targetEnd = targetStart + targetDuration;
 
     const movingLesson = state.lessons.find(l => l.id === lessonId);
     const hasMovingPrep = movingLesson && movingLesson.hasPrep;
@@ -330,11 +405,13 @@ function createMovedLessonBlock(ml) {
         type: 'moved_lesson', id: ml.id, lessonId: ml.lessonId, dateStr: ml.dateStr
     }));
 
-    el.addEventListener('mousedown', (e) => {
+    el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
+        e.preventDefault();
         initDrag(e, { id: ml.lessonId, title: ml.title, startTime: ml.timeStr }, ml.dateStr,
             () => openLessonEditModal(ml.lessonId),
-            { sourceType: 'moved_lesson', movedLessonId: ml.id }
+            { sourceType: 'moved_lesson', movedLessonId: ml.id },
+            () => ({ type: 'moved_lesson', id: ml.id, lessonId: ml.lessonId, dateStr: ml.dateStr })
         );
     });
 
@@ -359,11 +436,13 @@ function createSingleEventBlock(event) {
     el.addEventListener('click', () => openPrepModal(event.id, event.studentName || '', event.groupName || '', false));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'single_event', id: event.id }));
 
-    el.addEventListener('mousedown', (e) => {
+    el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
+        e.preventDefault();
         initDrag(e, { id: event.id, title: `Відпр: ${sText}`, startTime: event.timeStr, duration: event.duration }, event.dateStr,
             () => openPrepModal(event.id, event.studentName || '', event.groupName || '', false),
-            { sourceType: 'single_event' }
+            { sourceType: 'single_event' },
+            () => ({ type: 'single_event', id: event.id })
         );
     });
 
@@ -382,12 +461,16 @@ export function renderGridHeader() {
     const header = document.getElementById('gridHeader');
     if (!header) return;
     header.innerHTML = '<div class="header-cell">Час</div>';
+    const todayStr = formatDate(new Date());
     for (let i = 0; i < 7; i++) {
         const dayDate = new Date(state.currentWeekStart);
         dayDate.setDate(dayDate.getDate() + i);
         const dayNum = dayDate.getDate();
         const monthNum = dayDate.getMonth() + 1;
-        header.innerHTML += `<div class="header-cell">${DAYS_SHORT[i]}<br><span>${dayNum}.${monthNum}</span></div>`;
+        const cell = document.createElement('div');
+        cell.className = 'header-cell' + (formatDate(dayDate) === todayStr ? ' today' : '');
+        cell.innerHTML = `${DAYS_SHORT[i]}<br><span>${dayNum}.${monthNum}</span>`;
+        header.appendChild(cell);
     }
 }
 

@@ -8,17 +8,17 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.17';function $v(u){return u+'?v='+window.APP_VERSION}</script>
-  <script>document.write('<link rel="stylesheet" href="'+$v('styles.css')+'">')</script>
+  <script>window.APP_VERSION = '1.0.23';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>document.write('<link rel="stylesheet" href="'+$v('assets/styles.css')+'">')</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#7c3aed">
   <!-- Іконка для вкладок браузера (Favicon) -->
-  <link rel="icon" type="image/png" sizes="32x32" href="icon-192.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 
   <!-- Іконка для пристроїв Apple (iOS Safari) -->
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 </head>
 <body>
 
@@ -52,10 +52,10 @@
     <div id="globalNonWorkingWrapper" class="header-checkbox-label" style="display: none;">
       <input type="checkbox" id="globalNonWorking"> Щотижнево
     </div>
-    <button id="modeBtn" class="btn" data-tooltip="E" onclick="toggleEditMode()"><i class="ph ph-pencil-simple"></i> Режим: Звичайний</button>
+    <button id="modeBtn" class="btn" data-tooltip="E" onclick="toggleEditMode()"><i class="ph ph-pencil-simple"></i> <span class="mode-label">Режим: Звичайний</span></button>
 
     <div class="settings-dropdown-container">
-      <button class="btn" onclick="toggleSettingsDropdown()"><i class="ph ph-gear"></i> Налаштування</button>
+      <button class="btn" onclick="toggleSettingsDropdown()"><i class="ph ph-gear"></i> <span class="settings-label">Налаштування</span></button>
       <div id="settingsDropdown" class="settings-dropdown-menu" style="display: none;">
         <div class="dropdown-section form-group">
           <label for="timezoneSelect">Часовий пояс відображення</label>
@@ -181,6 +181,9 @@
   </main>
 </div>
 
+<div id="sidebarBackdrop" class="sidebar-backdrop" style="display: none;"></div>
+<button id="sidebarFab" class="sidebar-fab" aria-label="Відкрити панель"><i class="ph ph-plus"></i></button>
+
 <div id="prepModal" class="modal" style="display: none;">
   <div class="modal-content">
     <h3>Записати на відпрацювання</h3>
@@ -291,6 +294,6 @@
   </div>
 </div>
 
-<script>document.write('<script type="module" src="main.js"><\/script>')</script>
+<script>document.write('<script type="module" src="src/main.js"><\/script>')</script>
 </body>
 </html>

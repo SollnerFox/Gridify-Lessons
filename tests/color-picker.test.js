@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from '../color-picker.js';
+import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from '../src/ui/color-picker.js';
+
+// Мокаємо settings.js, бо color-picker.js імпортує updateThemeColor звідти,
+// а settings.js тягне проміжні модулі з https://www.gstatic.com Firebase-імпортами
+vi.mock('../src/ui/settings.js', () => ({
+  updateThemeColor: vi.fn(),
+}));
 
 describe('hexToRgb', () => {
   it('converts black', () => {
@@ -125,9 +131,10 @@ describe('hsvToRgb', () => {
 
   it('converts desaturated color', () => {
     const { r, g, b } = hsvToRgb(0, 0, 0.5);
-    expect(r).toBe(128);
-    expect(g).toBe(128);
-    expect(b).toBe(128);
+    // hsvToRgb повертає сирі float-значення; округлення відбувається в rgbToHex
+    expect(r).toBe(127.5);
+    expect(g).toBe(127.5);
+    expect(b).toBe(127.5);
   });
 });
 

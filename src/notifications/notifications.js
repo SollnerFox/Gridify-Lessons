@@ -1,5 +1,5 @@
-﻿import { state } from "./state.js";
-import { saveAllData } from "./storage.js";
+﻿import { state } from "../state.js";
+import { saveAllData } from "../services/storage.js";
 
 class NotificationManager {
     constructor() {

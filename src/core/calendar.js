@@ -1,10 +1,11 @@
-﻿import { state, getMonday, formatDate } from "./state.js";
-import { saveAllData } from "./storage.js";
-import { WORK_START_HOUR, WORK_END_HOUR, SLOT_HEIGHT } from "./config.js";
-import { getTzOffsetMinutes, getTargetDate, calcMinutesFromBase, calcTopPx } from "./time-utils.js";
+﻿import { state } from "../state.js";
+import { getMonday, formatDate } from "../utils/dates.js";
+import { saveAllData } from "../services/storage.js";
+import { WORK_START_HOUR, WORK_END_HOUR, SLOT_HEIGHT } from "../config.js";
+import { getTzOffsetMinutes, getTargetDate, calcMinutesFromBase, calcTopPx } from "../utils/time-utils.js";
 import { renderWeekLabel, renderGridHeader, renderTimeColumn, renderDayColumn } from "./calendar-renderer.js";
 
-export { getTzOffsetMinutes } from "./time-utils.js";
+export { getTzOffsetMinutes } from "../utils/time-utils.js";
 
 export function changeWeek(offset) {
     if (offset === 0) state.currentWeekStart = getMonday(new Date());
@@ -19,11 +20,11 @@ export function toggleEditMode() {
     const globalWrapper = document.getElementById('globalNonWorkingWrapper');
 
     if (state.isNonWorkingEditMode) {
-        if (btn) { btn.innerHTML = '<i class="ph ph-pencil-slash"></i> Режим: Неробочі години (активний)'; btn.classList.add('active'); }
+        if (btn) { btn.innerHTML = '<i class="ph ph-pencil-slash"></i> <span class="mode-label">Режим: Неробочі години (активний)</span>'; btn.classList.add('active'); }
         if (calendarView) calendarView.classList.add('edit-non-working');
         if (globalWrapper) globalWrapper.style.display = 'flex';
     } else {
-        if (btn) { btn.innerHTML = '<i class="ph ph-pencil-simple"></i> Режим: Звичайний'; btn.classList.remove('active'); }
+        if (btn) { btn.innerHTML = '<i class="ph ph-pencil-simple"></i> <span class="mode-label">Режим: Звичайний</span>'; btn.classList.remove('active'); }
         if (calendarView) calendarView.classList.remove('edit-non-working');
         if (globalWrapper) globalWrapper.style.display = 'none';
     }

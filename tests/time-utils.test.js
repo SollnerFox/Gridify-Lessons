@@ -5,7 +5,25 @@ import {
   calcHeightPx,
   calcLessonPosition,
   DAYS_SHORT,
-} from '../time-utils.js';
+} from '../src/utils/time-utils.js';
+
+// Мокаємо config.js, щоб уникнути https://www.gstatic.com Firebase-імпортів у вузлі
+vi.mock('../src/config.js', () => ({
+  WORK_START_HOUR: 8,
+  WORK_END_HOUR: 22,
+  LESSON_DURATION: 90,
+  SLOT_HEIGHT: 40,
+  REGIONAL_TIMEZONES: [],
+  isDev: false,
+  app: {},
+  auth: {},
+  db: {},
+}));
+
+// Мокаємо state.js, щоб уникнути доступу до localStorage / getMonday
+vi.mock('../src/state.js', () => ({
+  state: { currentTz: 'Europe/Kyiv' },
+}));
 
 describe('DAYS_SHORT', () => {
   it('has 7 day labels', () => {

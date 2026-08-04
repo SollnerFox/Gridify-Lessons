@@ -1,5 +1,5 @@
-import { state } from "./state.js";
-import { WORK_START_HOUR, LESSON_DURATION, SLOT_HEIGHT } from "./config.js";
+import { state } from "../state.js";
+import { WORK_START_HOUR, LESSON_DURATION, SLOT_HEIGHT } from "../config.js";
 
 export const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMonday, formatDate } from '../state.js';
+import { getMonday, formatDate } from '../src/utils/dates.js';
 
 describe('getMonday', () => {
   it('returns same day for Monday', () => {

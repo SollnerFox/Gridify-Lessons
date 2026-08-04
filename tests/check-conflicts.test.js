@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
 // Shared mutable mock state — modified by test, read by calendar-renderer
-const mockState = {
-  lessons: [],
-  movedLessons: [],
-  cancelledDates: [],
-  singleEvents: [],
-  nonWorkingSlots: [],
-  recurringNonWorkingSlots: [],
-  workingExceptions: [],
-};
+// vi.hoisted() гарантує ініціалізацію до того, як vitest підніме vi.mock()
+const { mockState } = vi.hoisted(() => ({
+  mockState: {
+    lessons: [],
+    movedLessons: [],
+    cancelledDates: [],
+    singleEvents: [],
+    nonWorkingSlots: [],
+    recurringNonWorkingSlots: [],
+    workingExceptions: [],
+  },
+}));
 
-vi.mock('../config.js', () => ({
+vi.mock('../src/config.js', () => ({
   WORK_START_HOUR: 8,
   WORK_END_HOUR: 22,
   LESSON_DURATION: 90,
@@ -19,17 +22,17 @@ vi.mock('../config.js', () => ({
   REGIONAL_TIMEZONES: [],
 }));
 
-vi.mock('../time-utils.js', () => ({
+vi.mock('../src/utils/time-utils.js', () => ({
   DAYS_SHORT: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
 }));
 
-vi.mock('../state.js', () => ({
+vi.mock('../src/state.js', () => ({
   state: mockState,
   formatDate: vi.fn(),
   getMonday: vi.fn(),
 }));
 
-import { checkConflicts } from '../calendar-renderer.js';
+import { checkConflicts } from '../src/core/calendar-renderer.js';
 
 // Helpers
 const lesson = (id, title, dayOfWeek, startTime, hasPrep = false) => ({
@@ -248,6 +251,38 @@ describe('checkConflicts', () => {
       mockState.cancelledDates.push('l1_2024-01-15');
       const result = checkConflicts('none', MON, '09:00', null);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('60-min single event duration', () => {
+    it('60-min prep at 10:30 abutting 11:30 lesson does NOT conflict', () => {
+      // prep 10:30-11:30 (630-690), lesson 11:30-13:00 (690-780)
+      // exclusive border: 690 > 690 is false → no overlap
+      mockState.lessons.push(lesson('l1', 'test', 1, '11:30'));
+      const result = checkConflicts('ev1', MON, '10:30', 'ev1', 60);
+      expect(result).toEqual([]);
+    });
+
+    it('60-min prep at 10:30 overlapping 10:00 lesson DOES conflict', () => {
+      // prep 10:30-11:30 (630-690), lesson 10:00-11:30 (600-690)
+      // overlap(630, 690, 600, 690) = 630<690 && 690>600 = true
+      mockState.lessons.push(lesson('l1', 'test', 1, '10:00'));
+      const result = checkConflicts('ev1', MON, '10:30', 'ev1', 60);
+      expect(result.some(c => c.type === 'lesson')).toBe(true);
+    });
+
+    it('90-min lesson at 10:30 abutting 11:30 lesson DOES conflict (unlike 60-min prep)', () => {
+      // lesson 10:30-12:00 (630-720), lesson 11:30-13:00 (690-780)
+      // overlap(630, 720, 690, 780) = 630<780 && 720>690 = true → conflict
+      mockState.lessons.push(lesson('l1', 'existing', 1, '11:30'));
+      const result = checkConflicts('l2', MON, '10:30', null, 90);
+      expect(result.some(c => c.type === 'lesson')).toBe(true);
+    });
+
+    it('defaults to 90-min duration when not specified', () => {
+      mockState.lessons.push(lesson('l1', 'existing', 1, '11:30'));
+      const result = checkConflicts('l2', MON, '10:30', null);
+      expect(result.some(c => c.type === 'lesson')).toBe(true);
     });
   });
 });

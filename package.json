@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bump-version": "node scripts/bump-version.js",
+    "build": "npm run bump-version && npm run test"
   },
   "devDependencies": {
     "vitest": "^1.6.0",
