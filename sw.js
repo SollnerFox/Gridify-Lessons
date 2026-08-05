@@ -1,6 +1,6 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
 // Версія береться з query-параметра ?v=APP_VERSION, який передається при реєстрації
-const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.27';
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.28';
 const CACHE_NAME = `gridify-cache-v${CACHE_VERSION}`;
 // BASE_PATH визначається динамічно зі scope SW, щоб працювати під будь-яким deployment-шляхом
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
@@ -73,6 +73,19 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('firestore.googleapis.com') ||
         url.hostname.includes('googleapis.com')) {
         event.respondWith(fetch(event.request));
+        return;
+    }
+
+    const isNav = event.request.mode === 'navigate';
+    const isIndex = url.pathname.endsWith('/index.html');
+    const isSW = url.pathname.indexOf('/sw.js') !== -1;
+
+    // Навігацію, index.html і сам sw.js НІКОЛИ не кешуємо: спочатку мережа.
+    // Інакше застарілий SW віддає стару сторінку і сам себе не оновлює (deadlock).
+    if (isNav || isIndex || isSW) {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request, { ignoreSearch: true }))
+        );
         return;
     }
 
