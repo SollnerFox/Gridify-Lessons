@@ -56,3 +56,14 @@ export function calcLessonPosition(h, m) {
     const base = calcMinutesFromBase(h, m);
     return { topPx: calcTopPx(base), heightPx: calcHeightPx(LESSON_DURATION) };
 }
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+export function minutesToTime(minutesOfDay) {
+    const total = ((minutesOfDay % 1440) + 1440) % 1440;
+    return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
+export function formatTimeRange(startMinutes, endMinutes) {
+    return `${minutesToTime(startMinutes)}–${minutesToTime(endMinutes)}`;
+}

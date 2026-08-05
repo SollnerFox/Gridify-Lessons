@@ -3,12 +3,20 @@ import { formatDate } from "../utils/dates.js";
 import { WORK_START_HOUR, WORK_END_HOUR, SLOT_HEIGHT, LESSON_DURATION } from "../config.js";
 import {
     DAYS_SHORT, calcMinutesFromBase, calcTopPx, calcHeightPx,
-    calcLessonPosition
+    calcLessonPosition, formatTimeRange
 } from "../utils/time-utils.js";
+import { layoutDay } from "../utils/event-layout.js";
 
 let showContextMenu = () => {};
 let openPrepModal = () => {};
 let openLessonEditModal = () => {};
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+// Проміжок (по 3px ліворуч/праворуч) між картками подій та краями колонки
+const EVENT_GAP = 3;
 
 export function setModalFunctions(fns) {
     showContextMenu = fns.showContextMenu;
@@ -113,7 +121,7 @@ function createSlotElement(hour, minute, currentDayStr, dayOfWeek) {
     return el;
 }
 
-function createPrepBlock(id, dateStr, topPx, heightPx, groupName) {
+function createPrepBlock(id, dateStr, topPx, heightPx, groupName, startMin) {
     const prepKey = `${id}_${dateStr}`;
     const { isCompleted, studentName, displayGroup } = resolvePrepData(prepKey, groupName);
 
@@ -121,10 +129,13 @@ function createPrepBlock(id, dateStr, topPx, heightPx, groupName) {
     el.className = `event-block event-prep ${isCompleted ? 'completed' : ''}`;
     el.style.top = `${topPx}px`;
     el.style.height = `${heightPx - 2}px`;
-    el.style.minHeight = '34px';
+    el.style.minHeight = '32px';
 
     const studentText = studentName.trim() ? studentName : 'Вільно';
-    el.innerHTML = `<div>Відпрацювання (30 хв):</div><div>${studentText}</div>`;
+    el.innerHTML = `
+        <div class="event-title">${esc(studentText)}</div>
+        <div class="event-time">${formatTimeRange(startMin, startMin + 30)}</div>
+    `;
 
     el.addEventListener('click', () => openPrepModal(prepKey, studentName, displayGroup, true));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'prep_override', key: prepKey }));
@@ -139,6 +150,8 @@ function createLessonBlock(lesson, currentDayStr, dayOfWeek) {
     if (state.cancelledDates.includes(`${lesson.id}_${currentDayStr}`)) return null;
 
     const [h, m] = lesson.startTime.split(':').map(Number);
+    const startMin = h * 60 + m;
+    const endMin = startMin + LESSON_DURATION;
     const { topPx, heightPx } = calcLessonPosition(h, m);
 
     const el = document.createElement('div');
@@ -146,10 +159,9 @@ function createLessonBlock(lesson, currentDayStr, dayOfWeek) {
     el.style.top = `${topPx}px`;
     el.style.height = `${heightPx - 2}px`;
 
-    const formattedEndDate = lesson.endDate ? lesson.endDate.split('-').reverse().join('.') : '';
     el.innerHTML = `
-        <div class="lesson-title">${lesson.title}</div>
-        <div class="lesson-end-date" style="font-size: 0.72rem; font-style: italic; opacity: 0.85; margin-top: 2px;">До: ${formattedEndDate}</div>
+        <div class="event-title">${esc(lesson.title)}</div>
+        <div class="event-time">${formatTimeRange(startMin, endMin)}</div>
     `;
 
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'lesson', id: lesson.id, dateStr: currentDayStr }));
@@ -238,7 +250,7 @@ function initDrag(e, lesson, dateStr, onClick, extra, menuDataFn) {
                     ...extra
                 });
             }
-        } else if (ev.pointerType === 'mouse' && ev.button === 0) {
+        } else if (ev.button === 0) {
             onClick();
         }
     };
@@ -394,12 +406,17 @@ export function checkConflicts(lessonId, targetDateStr, targetTimeStr, excludeEv
 function createMovedLessonBlock(ml) {
     const [h, m] = ml.timeStr.split(':').map(Number);
     const { topPx, heightPx } = calcLessonPosition(h, m);
+    const startMin = h * 60 + m;
+    const endMin = startMin + LESSON_DURATION;
 
     const el = document.createElement('div');
     el.className = 'event-block event-lesson';
     el.style.top = `${topPx}px`;
     el.style.height = `${heightPx - 2}px`;
-    el.innerText = ml.title;
+    el.innerHTML = `
+        <div class="event-title">${esc(ml.title)}</div>
+        <div class="event-time">${formatTimeRange(startMin, endMin)}</div>
+    `;
 
     el.addEventListener('contextmenu', (e) => showContextMenu(e, {
         type: 'moved_lesson', id: ml.id, lessonId: ml.lessonId, dateStr: ml.dateStr
@@ -420,6 +437,8 @@ function createMovedLessonBlock(ml) {
 
 function createSingleEventBlock(event) {
     const [h, m] = event.timeStr.split(':').map(Number);
+    const startMin = h * 60 + m;
+    const endMin = startMin + event.duration;
     const topPx = (calcMinutesFromBase(h, m) / 30) * SLOT_HEIGHT;
     const heightPx = (event.duration / 30) * SLOT_HEIGHT;
     const isCompleted = state.completedPreps.includes(event.id);
@@ -431,7 +450,10 @@ function createSingleEventBlock(event) {
     el.className = `event-block event-prep60 ${isCompleted ? 'completed' : ''}`;
     el.style.top = `${topPx}px`;
     el.style.height = `${heightPx - 2}px`;
-    el.innerText = `Відпрацювання (1 год): ${sText}`;
+    el.innerHTML = `
+        <div class="event-title">${esc(sText)}</div>
+        <div class="event-time">${formatTimeRange(startMin, endMin)}</div>
+    `;
 
     el.addEventListener('click', () => openPrepModal(event.id, event.studentName || '', event.groupName || '', false));
     el.addEventListener('contextmenu', (e) => showContextMenu(e, { type: 'single_event', id: event.id }));
@@ -502,33 +524,60 @@ export function renderDayColumn(dayIndex) {
         });
     }
 
+    // Збираємо події дня та їх часові інтервали для розкладання перекриттів
+    const blocks = [];
+    const addBlock = (el, startMin, endMin) => {
+        if (el) blocks.push({ el, start: startMin, end: endMin });
+    };
+
     state.lessons.forEach(l => {
         const lessonEl = createLessonBlock(l, currentDayStr, dayOfWeek);
         if (!lessonEl) return;
-        dayCol.appendChild(lessonEl);
+        const [h, m] = l.startTime.split(':').map(Number);
+        const lessonStart = h * 60 + m;
+        addBlock(lessonEl, lessonStart, lessonStart + LESSON_DURATION);
 
         if (l.hasPrep) {
-            const [h, m] = l.startTime.split(':').map(Number);
-            const base = calcMinutesFromBase(h, m) - 30;
-            dayCol.appendChild(createPrepBlock(l.id, currentDayStr, calcTopPx(base), calcHeightPx(30), l.title));
+            const prepStart = lessonStart - 30;
+            addBlock(
+                createPrepBlock(l.id, currentDayStr, calcTopPx(calcMinutesFromBase(h, m) - 30), calcHeightPx(30), l.title, prepStart),
+                prepStart, lessonStart
+            );
         }
     });
 
     state.movedLessons.forEach(ml => {
         if (ml.dateStr !== currentDayStr) return;
-        dayCol.appendChild(createMovedLessonBlock(ml));
+        const movedEl = createMovedLessonBlock(ml);
+        const [h, m] = ml.timeStr.split(':').map(Number);
+        const movedStart = h * 60 + m;
+        addBlock(movedEl, movedStart, movedStart + LESSON_DURATION);
 
-        const baseLesson = state.lessons.find(l => l.id === ml.lessonId);
+        const baseLesson = state.lessons.find(x => x.id === ml.lessonId);
         if (baseLesson && baseLesson.hasPrep) {
-            const [h, m] = ml.timeStr.split(':').map(Number);
-            const base = calcMinutesFromBase(h, m) - 30;
-            dayCol.appendChild(createPrepBlock(ml.lessonId, ml.dateStr, calcTopPx(base), calcHeightPx(30), ml.title));
+            const prepStart = movedStart - 30;
+            addBlock(
+                createPrepBlock(ml.lessonId, ml.dateStr, calcTopPx(calcMinutesFromBase(h, m) - 30), calcHeightPx(30), ml.title, prepStart),
+                prepStart, movedStart
+            );
         }
     });
 
     state.singleEvents.forEach(ev => {
         if (ev.dateStr !== currentDayStr) return;
-        dayCol.appendChild(createSingleEventBlock(ev));
+        const evBlock = createSingleEventBlock(ev);
+        const [h, m] = ev.timeStr.split(':').map(Number);
+        const evStart = h * 60 + m;
+        addBlock(evBlock, evStart, evStart + ev.duration);
+    });
+
+    // Розкладаємо перекриття: колонки + зазори (як у календарях)
+    const slots = layoutDay(blocks);
+    blocks.forEach((block, i) => {
+        const { col, numCols, colSpan } = slots[i];
+        block.el.style.left = `calc(${(col / numCols) * 100}% + ${EVENT_GAP}px)`;
+        block.el.style.width = `calc(${(colSpan / numCols) * 100}% - ${EVENT_GAP * 2}px)`;
+        dayCol.appendChild(block.el);
     });
 
     return dayCol;
