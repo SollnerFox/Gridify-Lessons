@@ -216,12 +216,24 @@ export function openLessonEditModal(lessonId) {
 
     const lesson = state.lessons.find(l => l.id === lessonId);
 
-    const titleInput = document.getElementById('modalLessonTitle');
+    if (lesson) {
+        const titleInput = document.getElementById('modalLessonTitle');
+        if (titleInput) titleInput.value = lesson.title || '';
 
-    if (lesson && titleInput) {
+        const daySelect = document.getElementById('modalLessonDay');
+        if (daySelect) daySelect.value = String(lesson.dayOfWeek ?? '');
 
-        titleInput.value = lesson.title;
+        const startInput = document.getElementById('modalLessonStart');
+        if (startInput) startInput.value = lesson.startTime || '';
 
+        const hasPrepInput = document.getElementById('modalLessonHasPrep');
+        if (hasPrepInput) hasPrepInput.checked = !!lesson.hasPrep;
+
+        const startDateInput = document.getElementById('modalLessonStartDate');
+        if (startDateInput) startDateInput.value = lesson.startDate || '';
+
+        const endDateInput = document.getElementById('modalLessonEndDate');
+        if (endDateInput) endDateInput.value = lesson.endDate || '';
     }
 
     const modal = document.getElementById('lessonEditModal');
@@ -241,44 +253,56 @@ export function closeLessonEditModal() {
 }
 
 // modals.js - ПРОБЛЕМА: Неправильна обробка видалення prep при редагуванні назви
-// ВИПРАВЛЕНА ФУНКЦІЯ saveLessonTitle
-export function saveLessonTitle() {
+// ВИПРАВЛЕНА ФУНКЦІЯ saveLessonEdit (повна картка редагування уроку)
+export function saveLessonEdit() {
     if (!activeLessonEditId) return;
-    const titleInput = document.getElementById('modalLessonTitle');
-    const newTitle = titleInput ? titleInput.value.trim() : '';
-    if (!newTitle) return;
+
+    const title = document.getElementById('modalLessonTitle')?.value.trim() || '';
+    const dayOfWeek = parseInt(document.getElementById('modalLessonDay')?.value);
+    const startTime = document.getElementById('modalLessonStart')?.value || '';
+    const hasPrep = !!document.getElementById('modalLessonHasPrep')?.checked;
+    const startDate = document.getElementById('modalLessonStartDate')?.value || '';
+    const endDate = document.getElementById('modalLessonEndDate')?.value || '';
+
+    if (!title || isNaN(dayOfWeek) || !startTime || !startDate || !endDate) {
+        alert('Будь ласка, заповніть усі поля уроку.');
+        return;
+    }
 
     const lesson = state.lessons.find(l => l.id === activeLessonEditId);
     if (lesson) {
         const oldTitle = lesson.title;
-        lesson.title = newTitle;
+        lesson.title = title;
+        lesson.dayOfWeek = dayOfWeek;
+        lesson.startTime = startTime;
+        lesson.hasPrep = hasPrep;
+        lesson.startDate = startDate;
+        lesson.endDate = endDate;
 
-        if (oldTitle !== newTitle) {
-            // ВИПРАВЛЕННЯ: Правильно оновлюємо prepOverrides
-            Object.keys(state.prepOverrides).forEach(key => {
-                const prep = state.prepOverrides[key];
-                if (prep && typeof prep === 'object' && prep.groupName === oldTitle) {
-                    prep.groupName = newTitle;
+        // ВИПРАВЛЕННЯ: Правильно оновлюємо prepOverrides
+        Object.keys(state.prepOverrides).forEach(key => {
+            const prep = state.prepOverrides[key];
+            if (prep && typeof prep === 'object' && prep.groupName === oldTitle) {
+                prep.groupName = title;
+            }
+        });
+
+        // Оновлюємо singleEvents
+        if (state.singleEvents) {
+            state.singleEvents.forEach(ev => {
+                if (ev.groupName === oldTitle) {
+                    ev.groupName = title;
                 }
             });
+        }
 
-            // Оновлюємо singleEvents
-            if (state.singleEvents) {
-                state.singleEvents.forEach(ev => {
-                    if (ev.groupName === oldTitle) {
-                        ev.groupName = newTitle;
-                    }
-                });
-            }
-
-            // ДОДАНО: Оновлюємо movedLessons
-            if (state.movedLessons) {
-                state.movedLessons.forEach(ml => {
-                    if (ml.lessonId === activeLessonEditId) {
-                        ml.title = newTitle;
-                    }
-                });
-            }
+        // ДОДАНО: Оновлюємо movedLessons
+        if (state.movedLessons) {
+            state.movedLessons.forEach(ml => {
+                if (ml.lessonId === activeLessonEditId) {
+                    ml.title = title;
+                }
+            });
         }
 
         saveAllData();

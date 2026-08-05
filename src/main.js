@@ -26,7 +26,7 @@ import {
     savePrepStudent,
     openLessonEditModal,
     closeLessonEditModal,
-    saveLessonTitle,
+    saveLessonEdit,
     handleContextMenuAction,
     clearData,
     exportScheduleImage,
@@ -173,7 +173,7 @@ window.closeModal = closeModal;
 window.savePrepStudent = savePrepStudent;
 window.openLessonEditModal = openLessonEditModal;
 window.closeLessonEditModal = closeLessonEditModal;
-window.saveLessonTitle = saveLessonTitle;
+window.saveLessonEdit = saveLessonEdit;
 window.handleContextMenuAction = handleContextMenuAction;
 window.exportScheduleImage = exportScheduleImage;
 window.openMoveLessonModal = openMoveLessonModal;

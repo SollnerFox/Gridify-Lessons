@@ -8,7 +8,7 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.31';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>window.APP_VERSION = '1.0.32';function $v(u){return u+'?v='+window.APP_VERSION}</script>
   <script>
   // Реєструємо SW незалежно від main.js — щоб оновлення версії доходило навіть якщо main.js тимчасово не завантажився
   (function () {
@@ -222,13 +222,43 @@
 
 <div id="lessonEditModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <h3>Редагувати назву групи</h3>
+    <h3>Редагувати урок</h3>
     <div class="form-group">
-      <label for="modalLessonTitle">Нова назва</label>
-      <input type="text" id="modalLessonTitle" placeholder="Введіть нову назву">
+      <label for="modalLessonTitle">Група</label>
+      <input type="text" id="modalLessonTitle" placeholder="Наприклад: Python">
+    </div>
+    <div class="form-group">
+      <label for="modalLessonDay">День тижня</label>
+      <select id="modalLessonDay">
+        <option value="" disabled selected hidden>Оберіть день</option>
+        <option value="1">Понеділок</option>
+        <option value="2">Вівторок</option>
+        <option value="3">Середа</option>
+        <option value="4">Четвер</option>
+        <option value="5">П'ятниця</option>
+        <option value="6">Субота</option>
+        <option value="0">Неділя</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="modalLessonStart">Час початку</label>
+      <input type="time" id="modalLessonStart" step="1800">
+    </div>
+    <div class="form-group checkbox-group">
+      <label>
+        <input type="checkbox" id="modalLessonHasPrep"> +30 хв відпрацювання перед уроком
+      </label>
+    </div>
+    <div class="form-group">
+      <label for="modalLessonStartDate">Початок курсу</label>
+      <input type="date" id="modalLessonStartDate">
+    </div>
+    <div class="form-group">
+      <label for="modalLessonEndDate">Кінець курсу</label>
+      <input type="date" id="modalLessonEndDate">
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveLessonTitle()">Зберегти</button>
+      <button class="btn btn-primary" onclick="saveLessonEdit()">Зберегти</button>
       <button class="btn" onclick="closeLessonEditModal()">Скасувати</button>
     </div>
   </div>
