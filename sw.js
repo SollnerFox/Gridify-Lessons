@@ -1,6 +1,6 @@
 ﻿// sw.js - ПОВНА ВИПРАВЛЕНА ВЕРСІЯ
 // Версія береться з query-параметра ?v=APP_VERSION, який передається при реєстрації
-const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.28';
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || '1.0.29';
 const CACHE_NAME = `gridify-cache-v${CACHE_VERSION}`;
 // BASE_PATH визначається динамічно зі scope SW, щоб працювати під будь-яким deployment-шляхом
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
