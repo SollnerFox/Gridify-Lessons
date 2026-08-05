@@ -27,6 +27,12 @@ export const app = initializeApp(firebaseConfig, appName);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
+// Прапорець «є реальна зміна для користувача».
+// ЗМІНЮЙ ЙОГО (на будь-яке унікальне значення) ТІЛЬКИ КОЛИ Є РЕАЛЬНІ ЗМІНИ — тоді покажеться банер «Вийшла нова версія».
+// Технічні бампи версії НЕ чіпають цей рядок → банер не показується.
+// null = банер вимкнено.
+export const UPDATE_NOTICE = '1.0.33';
+
 export const WORK_START_HOUR = 8;
 export const WORK_END_HOUR = 22;
 export const LESSON_DURATION = 90;

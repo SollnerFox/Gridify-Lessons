@@ -8,7 +8,7 @@
   <title>Gridify Lessons</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script>window.APP_VERSION = '1.0.32';function $v(u){return u+'?v='+window.APP_VERSION}</script>
+  <script>window.APP_VERSION = '1.0.34';function $v(u){return u+'?v='+window.APP_VERSION}</script>
   <script>
   // Реєструємо SW незалежно від main.js — щоб оновлення версії доходило навіть якщо main.js тимчасово не завантажився
   (function () {
@@ -46,6 +46,18 @@
 </div>
 
 <div id="devBanner" class="dev-banner" style="display: none;"><i class="ph ph-flask"></i> ТЕСТОВА БАЗА ДАНИХ</div>
+
+<div id="updateBanner" class="modal" style="display: none; z-index: 1001;">
+  <div class="modal-content" style="text-align: center;">
+    <h3>Вийшла нова версія</h3>
+    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;">
+      Натисніть ОК, щоб оновитись.
+    </p>
+    <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+      <button class="btn btn-primary" onclick="dismissUpdateBanner()">ОК</button>
+    </div>
+  </div>
+</div>
 <header class="top-bar">
   <div class="controls">
     <div class="nav-group">

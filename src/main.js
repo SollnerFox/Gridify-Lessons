@@ -37,7 +37,7 @@ import {
     confirmConflictOverride,
     closeConflictModal
 } from "./core/modals.js";
-import { SLOT_HEIGHT, isDev } from './config.js';
+import { SLOT_HEIGHT, isDev, UPDATE_NOTICE } from './config.js';
 
 setModalFunctions({ showContextMenu, openPrepModal, openLessonEditModal });
 
@@ -91,6 +91,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDev) {
         document.getElementById('devBanner').style.display = 'flex';
     }
+
+    const NOTICE_STORAGE_KEY = 'gridify_update_notice_seen';
+    const bannerEl = document.getElementById('updateBanner');
+
+    const showUpdateBanner = () => {
+        if (!UPDATE_NOTICE || !bannerEl) return;
+        if (localStorage.getItem(NOTICE_STORAGE_KEY) === UPDATE_NOTICE) return;
+        bannerEl.style.display = 'flex';
+    };
+
+    window.dismissUpdateBanner = () => {
+        if (!bannerEl) return;
+        bannerEl.style.display = 'none';
+        if (UPDATE_NOTICE) localStorage.setItem(NOTICE_STORAGE_KEY, UPDATE_NOTICE);
+        location.reload();
+    };
+
+    showUpdateBanner();
 
     const sidebarOpen = () => {
         const sidebar = document.getElementById('appSidebar');
